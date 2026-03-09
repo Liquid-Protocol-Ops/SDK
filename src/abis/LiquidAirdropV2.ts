@@ -1,0 +1,55 @@
+export const LiquidAirdropV2Abi = [
+  {
+    type: "function",
+    name: "airdrops",
+    inputs: [{ name: "token", type: "address" }],
+    outputs: [
+      { name: "admin", type: "address" },
+      { name: "merkleRoot", type: "bytes32" },
+      { name: "totalSupply", type: "uint256" },
+      { name: "totalClaimed", type: "uint256" },
+      { name: "lockupEndTime", type: "uint256" },
+      { name: "vestingEndTime", type: "uint256" },
+      { name: "adminClaimTime", type: "uint256" },
+      { name: "adminClaimed", type: "bool" },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "amountAvailableToClaim",
+    inputs: [
+      { name: "token", type: "address" },
+      { name: "recipient", type: "address" },
+      { name: "allocatedAmount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "claim",
+    inputs: [
+      { name: "token", type: "address" },
+      { name: "recipient", type: "address" },
+      { name: "allocatedAmount", type: "uint256" },
+      { name: "proof", type: "bytes32[]" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "CLAIM_EXPIRATION_INTERVAL",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "MIN_LOCKUP_DURATION",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+  },
+] as const;
