@@ -52,6 +52,15 @@ export interface DeploymentConfig {
   extensionConfigs: ExtensionConfig[];
 }
 
+// ── Dev Buy types ───────────────────────────────────────────────────
+
+export interface DevBuyParams {
+  /** Amount of ETH to spend on the dev buy */
+  ethAmount: bigint;
+  /** Address to receive the purchased tokens */
+  recipient: Address;
+}
+
 // ── SDK-level simplified params ──────────────────────────────────────
 
 export interface DeployTokenParams {
@@ -98,6 +107,9 @@ export interface DeployTokenParams {
 
   /** Extension configs (vault, airdrop, etc.) */
   extensions?: ExtensionConfig[];
+
+  /** Dev buy: buy tokens with ETH at launch. Adds the Univ4EthDevBuy extension automatically. */
+  devBuy?: DevBuyParams;
 }
 
 // ── Return types ─────────────────────────────────────────────────────

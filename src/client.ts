@@ -5,9 +5,11 @@ import {
   type PublicClient,
   type WalletClient,
   decodeEventLog,
+  encodeAbiParameters,
   encodePacked,
   keccak256,
   getAddress,
+  zeroAddress,
 } from "viem";
 import { base } from "viem/chains";
 import { ADDRESSES, EXTERNAL, DEFAULT_CHAIN_ID } from "./constants";
@@ -26,8 +28,10 @@ import type {
   AirdropInfo,
   DeployTokenParams,
   DeployTokenResult,
+  DevBuyParams,
   DeploymentInfo,
   DeploymentConfig,
+  ExtensionConfig,
   LiquidSDKConfig,
   PoolDynamicConfigVars,
   PoolDynamicFeeVars,
@@ -45,6 +49,60 @@ export class LiquidSDK {
   constructor(config: LiquidSDKConfig) {
     this.publicClient = config.publicClient;
     this.walletClient = config.walletClient;
+  }
+
+  // ── Dev Buy Helper ───────────────────────────────────────────────
+
+  /**
+   * Build an ExtensionConfig for a dev buy (buy tokens with ETH at launch).
+   * The paired token must be WETH for simple dev buys.
+   */
+  buildDevBuyExtension(devBuy: DevBuyParams): ExtensionConfig {
+    // Encode Univ4EthDevBuyExtensionData struct:
+    // { PoolKey pairedTokenPoolKey, uint128 pairedTokenAmountOutMinimum, address recipient }
+    // For WETH-paired tokens, pairedTokenPoolKey is zeroed out (not used)
+    const extensionData = encodeAbiParameters(
+      [
+        {
+          type: "tuple",
+          components: [
+            {
+              type: "tuple",
+              name: "pairedTokenPoolKey",
+              components: [
+                { type: "address", name: "currency0" },
+                { type: "address", name: "currency1" },
+                { type: "uint24", name: "fee" },
+                { type: "int24", name: "tickSpacing" },
+                { type: "address", name: "hooks" },
+              ],
+            },
+            { type: "uint128", name: "pairedTokenAmountOutMinimum" },
+            { type: "address", name: "recipient" },
+          ],
+        },
+      ],
+      [
+        {
+          pairedTokenPoolKey: {
+            currency0: zeroAddress,
+            currency1: zeroAddress,
+            fee: 0,
+            tickSpacing: 0,
+            hooks: zeroAddress,
+          },
+          pairedTokenAmountOutMinimum: 0n,
+          recipient: devBuy.recipient,
+        },
+      ]
+    );
+
+    return {
+      extension: ADDRESSES.UNIV4_ETH_DEV_BUY,
+      msgValue: devBuy.ethAmount,
+      extensionBps: 0,
+      extensionData,
+    };
   }
 
   // ── Token Deployment ─────────────────────────────────────────────
@@ -95,8 +153,15 @@ export class LiquidSDK {
         mevModule: params.mevModule ?? ADDRESSES.MEV_BLOCK_DELAY,
         mevModuleData: params.mevModuleData ?? "0x",
       },
-      extensionConfigs: params.extensions ?? [],
+      extensionConfigs: [...(params.extensions ?? [])],
     };
+
+    // Append dev buy extension if specified
+    if (params.devBuy) {
+      deploymentConfig.extensionConfigs.push(
+        this.buildDevBuyExtension(params.devBuy)
+      );
+    }
 
     // Calculate total msg.value from extensions
     const msgValue = deploymentConfig.extensionConfigs.reduce(

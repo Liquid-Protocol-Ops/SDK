@@ -19,6 +19,7 @@ export type {
   DeployTokenResult,
   DeploymentConfig,
   DeploymentInfo,
+  DevBuyParams,
   ExtensionConfig,
   LiquidSDKConfig,
   LockerConfig,
