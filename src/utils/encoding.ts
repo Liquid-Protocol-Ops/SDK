@@ -2,7 +2,7 @@
  * ABI encoding helpers for pool data, fee configs, and MEV module data.
  */
 
-import { type Hex, encodeAbiParameters, zeroAddress } from "viem";
+import { type Hex, encodeAbiParameters, zeroAddress, type Address } from "viem";
 
 // ── Pool Initialization Data (V2 hooks two-layer encoding) ──────────
 
@@ -192,4 +192,55 @@ export function encodeSniperAuctionData(config: SniperAuctionConfig): Hex {
       secondsToDecay: BigInt(config.secondsToDecay),
     },
   ]);
+}
+
+// ── Fee Conversion Locker Data Encoding ─────────────────────────────
+
+/**
+ * Fee preference for LP_LOCKER_FEE_CONVERSION.
+ * Determines which token each reward recipient receives their fees in.
+ *
+ * - `Both` (0): No conversion, fees paid in whichever token accrues
+ * - `Paired` (1): Convert fees to paired token (usually WETH)
+ * - `Liquid` (2): Convert fees to the liquid token
+ */
+export enum FeePreference {
+  Both = 0,
+  Paired = 1,
+  Liquid = 2,
+}
+
+/**
+ * Encode lockerData for LP_LOCKER_FEE_CONVERSION.
+ *
+ * The fee conversion locker requires a `FeeIn[]` array with one entry per
+ * reward recipient, specifying how each recipient wants their fees.
+ *
+ * @param feePreferences - Array of FeePreference values, one per reward recipient
+ * @returns Encoded lockerData hex string
+ *
+ * @example
+ * ```ts
+ * // Single recipient, fees converted to ETH
+ * const lockerData = encodeFeeConversionLockerData([FeePreference.Paired]);
+ *
+ * // Two recipients: first gets ETH, second gets the token
+ * const lockerData = encodeFeeConversionLockerData([FeePreference.Paired, FeePreference.Liquid]);
+ * ```
+ */
+export function encodeFeeConversionLockerData(
+  feePreferences: FeePreference[],
+): Hex {
+  // Encode as LpFeeConversionInfo struct: { FeeIn[] feePreference }
+  return encodeAbiParameters(
+    [
+      {
+        type: "tuple",
+        components: [
+          { name: "feePreference", type: "uint8[]" },
+        ],
+      },
+    ],
+    [{ feePreference: feePreferences }],
+  );
 }

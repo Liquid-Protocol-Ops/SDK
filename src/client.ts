@@ -14,7 +14,7 @@ import {
 } from "viem";
 import { base } from "viem/chains";
 import { ADDRESSES, EXTERNAL, DEFAULT_CHAIN_ID, DEFAULTS, POOL_POSITIONS, FEE, TOKEN } from "./constants";
-import { encodeStaticFeePoolData, encodeSniperAuctionData } from "./utils/encoding";
+import { encodeStaticFeePoolData, encodeSniperAuctionData, encodeFeeConversionLockerData, FeePreference } from "./utils/encoding";
 import { buildContext } from "./utils/context";
 import { LiquidFactoryAbi } from "./abis/LiquidFactory";
 import { LiquidFeeLockerAbi } from "./abis/LiquidFeeLocker";
@@ -274,22 +274,37 @@ export class LiquidSDK {
             DEFAULTS.PAIRED_FEE_BPS,
           ),
       },
-      lockerConfig: {
-        locker: params.locker ?? DEFAULTS.LOCKER,
-        rewardAdmins: params.rewardAdmins ?? [account],
-        rewardRecipients: params.rewardRecipients ?? [account],
-        rewardBps: params.rewardBps ?? [10000],
-        tickLower:
-          params.tickLower ??
-          POOL_POSITIONS.Liquid.map((p) => p.tickLower),
-        tickUpper:
-          params.tickUpper ??
-          POOL_POSITIONS.Liquid.map((p) => p.tickUpper),
-        positionBps:
-          params.positionBps ??
-          POOL_POSITIONS.Liquid.map((p) => p.positionBps),
-        lockerData: params.lockerData ?? "0x",
-      },
+      lockerConfig: (() => {
+        const locker = params.locker ?? DEFAULTS.LOCKER;
+        const rewardRecipients = params.rewardRecipients ?? [account];
+        const rewardBps = params.rewardBps ?? [10000];
+
+        // Auto-encode lockerData for fee conversion locker:
+        // one FeePreference.Paired entry per reward recipient (fees → ETH)
+        let lockerData = params.lockerData ?? "0x";
+        if (lockerData === "0x" && getAddress(locker) === getAddress(ADDRESSES.LP_LOCKER_FEE_CONVERSION)) {
+          lockerData = encodeFeeConversionLockerData(
+            rewardRecipients.map(() => FeePreference.Paired),
+          );
+        }
+
+        return {
+          locker,
+          rewardAdmins: params.rewardAdmins ?? [account],
+          rewardRecipients,
+          rewardBps,
+          tickLower:
+            params.tickLower ??
+            POOL_POSITIONS.Liquid.map((p) => p.tickLower),
+          tickUpper:
+            params.tickUpper ??
+            POOL_POSITIONS.Liquid.map((p) => p.tickUpper),
+          positionBps:
+            params.positionBps ??
+            POOL_POSITIONS.Liquid.map((p) => p.positionBps),
+          lockerData,
+        };
+      })(),
       mevModuleConfig: {
         mevModule: params.mevModule ?? DEFAULTS.MEV_MODULE,
         mevModuleData:

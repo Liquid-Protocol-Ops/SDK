@@ -25,6 +25,8 @@ export {
   encodeStaticFeePoolData,
   encodeDynamicFeePoolData,
   encodeSniperAuctionData,
+  encodeFeeConversionLockerData,
+  FeePreference,
 } from "./encoding";
 
 export type {

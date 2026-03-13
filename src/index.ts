@@ -30,6 +30,8 @@ export {
   encodeStaticFeePoolData,
   encodeDynamicFeePoolData,
   encodeSniperAuctionData,
+  encodeFeeConversionLockerData,
+  FeePreference,
   buildContext,
   buildMetadata,
   parseContext,
