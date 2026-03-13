@@ -5,8 +5,10 @@ TypeScript SDK for the Liquid Protocol token launcher on Base. Deploy tokens, ma
 ## Installation
 
 ```bash
-npm install liquid-protocol-sdk viem
+npm install liquid-sdk viem
 ```
+
+> **Defaults**: Static 1% fee, 3-tranche liquidity (40%/50%/10% at $500K/$10M/$1B), Sniper Auction MEV (80%→40% over 32s), tick spacing 200, starting tick -230400 (~10 ETH market cap).
 
 ## Quick Start
 
@@ -14,7 +16,7 @@ npm install liquid-protocol-sdk viem
 import { createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { base } from "viem/chains";
-import { LiquidSDK } from "liquid-protocol-sdk";
+import { LiquidSDK } from "liquid-sdk";
 
 const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
 
@@ -47,33 +49,54 @@ console.log("Pool ID:", result.event.poolId);
 console.log("Tx:", result.txHash);
 ```
 
-### Deploy with Custom Configuration
+### Deploy with Custom Market Cap Positions
 
 ```typescript
-import { ADDRESSES, EXTERNAL } from "liquid-protocol-sdk";
+import { createDefaultPositions, createPositionsUSD } from "liquid-sdk";
+
+// Use default 3-tranche split ($500K / $10M / $1B) at current ETH price
+const positions = createDefaultPositions(20_000, 2070); // $20K start, $2070/ETH
 
 const result = await liquid.deployToken({
-  name: "Custom Token",
-  symbol: "CTK",
+  name: "My Token",
+  symbol: "MTK",
+  ...positions, // tickLower, tickUpper, positionBps, tickIfToken0IsLiquid
+});
 
-  // Pool config
-  hook: ADDRESSES.HOOK_STATIC_FEE_V2, // use static fee hook
-  pairedToken: EXTERNAL.WETH,
-  tickSpacing: 60,
-  tickIfToken0IsLiquid: -198720,
+// Or define fully custom tranches
+const custom = createPositionsUSD(50_000, 2070, [
+  { upperMarketCapUSD: 1_000_000, supplyPct: 30 },
+  { upperMarketCapUSD: 50_000_000, supplyPct: 50 },
+  { upperMarketCapUSD: 500_000_000, supplyPct: 20 },
+]);
+```
 
-  // LP rewards: split 70/30 between creator and platform
-  rewardAdmins: [creatorAddress, platformAddress],
-  rewardRecipients: [creatorAddress, platformAddress],
-  rewardBps: [7000, 3000],
+### Deploy with Custom Fees
 
-  // Full-range single position
-  tickLower: [-887220],
-  tickUpper: [887220],
-  positionBps: [10000],
+```typescript
+import { ADDRESSES, encodeStaticFeePoolData, encodeDynamicFeePoolData } from "liquid-sdk";
 
-  // MEV protection
-  mevModule: ADDRESSES.MEV_BLOCK_DELAY,
+// Static 2% fee
+const result = await liquid.deployToken({
+  name: "Custom Fee Token",
+  symbol: "CFT",
+  poolData: encodeStaticFeePoolData(200, 200), // 2% both directions
+});
+
+// Dynamic fee (1%-5% range)
+const result2 = await liquid.deployToken({
+  name: "Dynamic Token",
+  symbol: "DYN",
+  hook: ADDRESSES.HOOK_DYNAMIC_FEE_V2,
+  poolData: encodeDynamicFeePoolData({
+    baseFeeBps: 100,
+    maxFeeBps: 500,
+    referenceTickFilterPeriod: 30,
+    resetPeriod: 120,
+    resetTickFilter: 200,
+    feeControlNumerator: 500000000n,
+    decayFilterBps: 7500,
+  }),
 });
 ```
 
@@ -156,12 +179,29 @@ All production addresses, fee parameters, and contract ABIs are exported:
 
 ```typescript
 import {
-  ADDRESSES,     // Liquid Protocol contract addresses
-  EXTERNAL,      // External protocol addresses (PoolManager, WETH, etc.)
-  FEE,           // Fee constants (denominator, protocol fee, max fees)
-  TOKEN,         // Token constants (supply, decimals, max extensions)
-  DEFAULT_CHAIN, // base chain object
+  ADDRESSES,        // Liquid Protocol contract addresses
+  EXTERNAL,         // External protocol addresses (PoolManager, WETH, etc.)
+  FEE,              // Fee constants (denominator, protocol fee, max fees)
+  TOKEN,            // Token constants (supply, decimals, max extensions)
+  DEFAULTS,         // Default deploy config (hook, fees, MEV, ticks)
+  POOL_POSITIONS,   // Position presets (Standard, Liquid)
+  DEFAULT_CHAIN,    // base chain object
   DEFAULT_CHAIN_ID, // 8453
+
+  // Tick math & positions
+  getTickFromMarketCapETH,
+  getTickFromMarketCapUSD,
+  marketCapFromTickETH,
+  marketCapFromTickUSD,
+  createPositions,
+  createPositionsUSD,
+  createDefaultPositions,
+  describePositions,
+
+  // Encoding helpers
+  encodeStaticFeePoolData,
+  encodeDynamicFeePoolData,
+  encodeSniperAuctionData,
 
   // ABIs for direct contract interaction
   LiquidFactoryAbi,
@@ -169,7 +209,7 @@ import {
   LiquidHookDynamicFeeV2Abi,
   LiquidVaultAbi,
   ERC20Abi,
-} from "liquid-protocol-sdk";
+} from "liquid-sdk";
 ```
 
 ## API Reference

@@ -1,7 +1,12 @@
 {
-  "name": "liquid-protocol-sdk",
-  "version": "0.1.0",
-  "description": "TypeScript SDK for the Liquid Protocol token launcher on Base",
+  "name": "liquid-sdk",
+  "version": "1.3.0",
+  "description": "TypeScript SDK to deploy ERC-20 tokens with Uniswap V4 liquidity on Base — zero API keys, one dependency (viem)",
+  "author": "Liquid Protocol",
+  "homepage": "https://github.com/craigbots/liquid-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/craigbots/liquid-sdk/issues"
+  },
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -13,7 +18,11 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "AGENT_README.md",
+    "CHANGELOG.md",
+    "llms.txt"
   ],
   "scripts": {
     "build": "tsup",
@@ -39,7 +48,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/liquid-protocol/liquid-protocol-sdk"
+    "url": "https://github.com/craigbots/liquid-sdk"
   },
   "keywords": [
     "liquid",
@@ -48,6 +57,15 @@
     "uniswap",
     "v4",
     "token",
-    "launcher"
+    "launcher",
+    "erc20",
+    "deploy",
+    "token-launcher",
+    "defi",
+    "onchain",
+    "web3",
+    "smart-contract",
+    "liquidity",
+    "mev-protection"
   ]
 }

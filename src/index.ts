@@ -1,5 +1,6 @@
 export { LiquidSDK } from "./client";
-export { ADDRESSES, EXTERNAL, FEE, TOKEN, DEFAULT_CHAIN, DEFAULT_CHAIN_ID } from "./constants";
+export { ADDRESSES, EXTERNAL, FEE, TOKEN, DEFAULT_CHAIN, DEFAULT_CHAIN_ID, DEFAULT_RPC_URL, POOL_POSITIONS, DEFAULTS } from "./constants";
+export type { PoolPosition } from "./constants";
 export {
   LiquidFactoryAbi,
   LiquidFeeLockerAbi,
@@ -11,8 +12,40 @@ export {
   LiquidPoolExtensionAllowlistAbi,
   LiquidMevBlockDelayAbi,
   LiquidLpLockerAbi,
+  LiquidTokenAbi,
+  LiquidUniv4EthDevBuyAbi,
   ERC20Abi,
 } from "./abis";
+export {
+  getTickFromMarketCapETH,
+  getTickFromMarketCapUSD,
+  getTickFromMarketCapStable,
+  marketCapFromTickETH,
+  marketCapFromTickUSD,
+  createPositions,
+  createPositionsUSD,
+  createDefaultPositions,
+  describePositions,
+  DEFAULT_TRANCHES_USD,
+  encodeStaticFeePoolData,
+  encodeDynamicFeePoolData,
+  encodeSniperAuctionData,
+  buildContext,
+  buildMetadata,
+  parseContext,
+  parseMetadata,
+} from "./utils";
+export type {
+  MarketCapTranche,
+  MarketCapTrancheUSD,
+  PositionConfig,
+  PositionArrays,
+  DynamicFeeConfig,
+  SniperAuctionConfig,
+  LiquidContext,
+  LiquidMetadata,
+  SocialMediaUrl,
+} from "./utils";
 export type {
   AirdropInfo,
   DeployTokenParams,
@@ -21,6 +54,7 @@ export type {
   DeploymentInfo,
   DevBuyParams,
   ExtensionConfig,
+  GetTokensOptions,
   LiquidSDKConfig,
   LockerConfig,
   MevModuleConfig,

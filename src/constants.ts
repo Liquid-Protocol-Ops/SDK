@@ -62,7 +62,89 @@ export const TOKEN = {
   MAX_EXTENSION_BPS: 9000,
 } as const;
 
+// ── Pool position presets ────────────────────────────────────────────
+
+export interface PoolPosition {
+  tickLower: number;
+  tickUpper: number;
+  positionBps: number;
+}
+
+/**
+ * Pre-built position configurations.
+ *
+ * - **Standard**: Single position covering full range (~$20K → $1.5B).
+ *   Default starting tick -230400 (≈10 ETH market cap).
+ *
+ * - **Liquid**: 3-tranche default for Liquid Protocol.
+ *   Hardcoded for ≈10 ETH start at ~$2070/ETH.
+ *   For dynamic market cap targets, use `createPositionsUSD()` instead.
+ *
+ * Note: positionBps must sum to 10,000 (100%).
+ */
+export const POOL_POSITIONS = {
+  /** Single position, 100% of liquidity in one range */
+  Standard: [
+    {
+      tickLower: -230400, // ~10 ETH / ~$20K
+      tickUpper: -120000, // ~$1.5B
+      positionBps: 10_000,
+    },
+  ] as PoolPosition[],
+
+  /** 3-tranche Liquid default (hardcoded for ~10 ETH start, ~$2070/ETH) */
+  Liquid: [
+    {
+      tickLower: -230400, // ~$20K starting
+      tickUpper: -198600, // ~$500K
+      positionBps: 4_000, // 40%
+    },
+    {
+      tickLower: -198600, // ~$500K
+      tickUpper: -168600, // ~$10M
+      positionBps: 5_000, // 50%
+    },
+    {
+      tickLower: -168600, // ~$10M
+      tickUpper: -122600, // ~$1B
+      positionBps: 1_000, // 10%
+    },
+  ] as PoolPosition[],
+} as const;
+
+// ── Default deploy configuration ────────────────────────────────────
+
+/**
+ * Liquid protocol defaults.
+ *
+ * - Hook: Static fee V2, 1% on buys only (fees in ETH), 0% on sells
+ * - MEV: Sniper Auction V2 — 80% → 40% decaying over 32 seconds
+ * - Tick spacing: 200
+ * - Starting tick: -230400 (≈10 ETH market cap)
+ * - Positions: 3-tranche Liquid default (40/50/10)
+ */
+export const DEFAULTS = {
+  HOOK: ADDRESSES.HOOK_STATIC_FEE_V2,
+  /** LP Locker with fee conversion (converts fees to ETH before distributing) */
+  LOCKER: ADDRESSES.LP_LOCKER_FEE_CONVERSION,
+  TICK_SPACING: 200,
+  TICK_IF_TOKEN0_IS_LIQUID: -230400,
+  /** Static fee on buys (ETH → token): 1% (100 bps). Fees collected in ETH. */
+  PAIRED_FEE_BPS: 100,
+  /** Static fee on sells (token → ETH): 0%. No fees in liquid token. */
+  LIQUID_FEE_BPS: 0,
+  /** MEV module: Sniper Auction V2 */
+  MEV_MODULE: ADDRESSES.SNIPER_AUCTION_V2,
+  /** Sniper auction starting fee: 80% (800,000 uniBps) */
+  SNIPER_STARTING_FEE: 800_000,
+  /** Sniper auction ending fee: 40% (400,000 uniBps) */
+  SNIPER_ENDING_FEE: 400_000,
+  /** Sniper auction decay period: 32 seconds */
+  SNIPER_SECONDS_TO_DECAY: 32,
+} as const;
+
 // ── Chain ────────────────────────────────────────────────────────────
 
 export const DEFAULT_CHAIN = base;
 export const DEFAULT_CHAIN_ID = 8453;
+export const DEFAULT_RPC_URL = "https://base.drpc.org";

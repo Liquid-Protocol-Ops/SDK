@@ -9,10 +9,13 @@ import {
   encodePacked,
   keccak256,
   getAddress,
+  parseAbiItem,
   zeroAddress,
 } from "viem";
 import { base } from "viem/chains";
-import { ADDRESSES, EXTERNAL, DEFAULT_CHAIN_ID } from "./constants";
+import { ADDRESSES, EXTERNAL, DEFAULT_CHAIN_ID, DEFAULTS, POOL_POSITIONS, FEE, TOKEN } from "./constants";
+import { encodeStaticFeePoolData, encodeSniperAuctionData } from "./utils/encoding";
+import { buildContext } from "./utils/context";
 import { LiquidFactoryAbi } from "./abis/LiquidFactory";
 import { LiquidFeeLockerAbi } from "./abis/LiquidFeeLocker";
 import { LiquidHookDynamicFeeV2Abi } from "./abis/LiquidHookDynamicFeeV2";
@@ -23,6 +26,7 @@ import { LiquidAirdropV2Abi } from "./abis/LiquidAirdropV2";
 import { LiquidPoolExtensionAllowlistAbi } from "./abis/LiquidPoolExtensionAllowlist";
 import { LiquidMevBlockDelayAbi } from "./abis/LiquidMevBlockDelay";
 import { LiquidLpLockerAbi } from "./abis/LiquidLpLocker";
+import { LiquidTokenAbi } from "./abis/LiquidToken";
 import { ERC20Abi } from "./abis/ERC20";
 import type {
   AirdropInfo,
@@ -32,6 +36,7 @@ import type {
   DeploymentInfo,
   DeploymentConfig,
   ExtensionConfig,
+  GetTokensOptions,
   LiquidSDKConfig,
   PoolDynamicConfigVars,
   PoolDynamicFeeVars,
@@ -105,6 +110,130 @@ export class LiquidSDK {
     };
   }
 
+  // ── Validation ─────────────────────────────────────────────────
+
+  /**
+   * Validate a DeploymentConfig before sending to the contract.
+   * Catches common mistakes client-side with clear error messages.
+   */
+  private validateDeploymentConfig(config: DeploymentConfig): void {
+    const { lockerConfig, extensionConfigs } = config;
+    const { tickSpacing } = config.poolConfig;
+
+    // Position arrays must be the same length
+    const posLen = lockerConfig.tickLower.length;
+    if (
+      lockerConfig.tickUpper.length !== posLen ||
+      lockerConfig.positionBps.length !== posLen
+    ) {
+      throw new Error(
+        `tickLower (${posLen}), tickUpper (${lockerConfig.tickUpper.length}), ` +
+          `and positionBps (${lockerConfig.positionBps.length}) arrays must be the same length`
+      );
+    }
+
+    if (posLen === 0) {
+      throw new Error("At least one position is required");
+    }
+
+    if (posLen > 7) {
+      throw new Error(`Maximum 7 positions allowed, got ${posLen}`);
+    }
+
+    // positionBps must sum to 10000
+    const posBpsSum = lockerConfig.positionBps.reduce((s, b) => s + b, 0);
+    if (posBpsSum !== FEE.BPS) {
+      throw new Error(
+        `positionBps must sum to ${FEE.BPS} (100%), got ${posBpsSum}`
+      );
+    }
+
+    // Each position: tickLower < tickUpper
+    for (let i = 0; i < posLen; i++) {
+      if (lockerConfig.tickLower[i] >= lockerConfig.tickUpper[i]) {
+        throw new Error(
+          `Position ${i}: tickLower (${lockerConfig.tickLower[i]}) must be less than tickUpper (${lockerConfig.tickUpper[i]})`
+        );
+      }
+    }
+
+    // Ticks must be multiples of tickSpacing
+    for (let i = 0; i < posLen; i++) {
+      if (lockerConfig.tickLower[i] % tickSpacing !== 0) {
+        throw new Error(
+          `Position ${i}: tickLower (${lockerConfig.tickLower[i]}) is not a multiple of tickSpacing (${tickSpacing})`
+        );
+      }
+      if (lockerConfig.tickUpper[i] % tickSpacing !== 0) {
+        throw new Error(
+          `Position ${i}: tickUpper (${lockerConfig.tickUpper[i]}) is not a multiple of tickSpacing (${tickSpacing})`
+        );
+      }
+    }
+
+    // All tickLower must be >= starting tick
+    const startingTick = config.poolConfig.tickIfToken0IsLiquid;
+    for (let i = 0; i < posLen; i++) {
+      if (lockerConfig.tickLower[i] < startingTick) {
+        throw new Error(
+          `Position ${i}: tickLower (${lockerConfig.tickLower[i]}) is below the starting tick (${startingTick})`
+        );
+      }
+    }
+
+    // At least one position must start at the starting tick
+    const touchesStart = lockerConfig.tickLower.some(
+      (t) => t === startingTick
+    );
+    if (!touchesStart) {
+      throw new Error(
+        `At least one position's tickLower must equal tickIfToken0IsLiquid (${startingTick})`
+      );
+    }
+
+    // Reward arrays must be the same length
+    const rwdLen = lockerConfig.rewardAdmins.length;
+    if (
+      lockerConfig.rewardRecipients.length !== rwdLen ||
+      lockerConfig.rewardBps.length !== rwdLen
+    ) {
+      throw new Error(
+        `rewardAdmins (${rwdLen}), rewardRecipients (${lockerConfig.rewardRecipients.length}), ` +
+          `and rewardBps (${lockerConfig.rewardBps.length}) arrays must be the same length`
+      );
+    }
+
+    if (rwdLen === 0) {
+      throw new Error("At least one reward recipient is required");
+    }
+
+    // rewardBps must sum to 10000
+    const rwdBpsSum = lockerConfig.rewardBps.reduce((s, b) => s + b, 0);
+    if (rwdBpsSum !== FEE.BPS) {
+      throw new Error(
+        `rewardBps must sum to ${FEE.BPS} (100%), got ${rwdBpsSum}`
+      );
+    }
+
+    // Extensions count limit
+    if (extensionConfigs.length > TOKEN.MAX_EXTENSIONS) {
+      throw new Error(
+        `Maximum ${TOKEN.MAX_EXTENSIONS} extensions allowed, got ${extensionConfigs.length}`
+      );
+    }
+
+    // Total extension bps must not exceed max
+    const extBpsSum = extensionConfigs.reduce(
+      (s, e) => s + e.extensionBps,
+      0
+    );
+    if (extBpsSum > TOKEN.MAX_EXTENSION_BPS) {
+      throw new Error(
+        `Total extensionBps (${extBpsSum}) exceeds maximum (${TOKEN.MAX_EXTENSION_BPS})`
+      );
+    }
+  }
+
   // ── Token Deployment ─────────────────────────────────────────────
 
   async deployToken(params: DeployTokenParams): Promise<DeployTokenResult> {
@@ -129,29 +258,47 @@ export class LiquidSDK {
           ),
         image: params.image ?? "",
         metadata: params.metadata ?? "",
-        context: params.context ?? "",
+        context: params.context ?? buildContext(),
         originatingChainId: BigInt(DEFAULT_CHAIN_ID),
       },
       poolConfig: {
-        hook: params.hook ?? ADDRESSES.HOOK_DYNAMIC_FEE_V2,
+        hook: params.hook ?? DEFAULTS.HOOK,
         pairedToken: params.pairedToken ?? EXTERNAL.WETH,
-        tickIfToken0IsLiquid: params.tickIfToken0IsLiquid ?? -198720,
-        tickSpacing: params.tickSpacing ?? 60,
-        poolData: params.poolData ?? "0x",
+        tickIfToken0IsLiquid:
+          params.tickIfToken0IsLiquid ?? DEFAULTS.TICK_IF_TOKEN0_IS_LIQUID,
+        tickSpacing: params.tickSpacing ?? DEFAULTS.TICK_SPACING,
+        poolData:
+          params.poolData ??
+          encodeStaticFeePoolData(
+            DEFAULTS.LIQUID_FEE_BPS,
+            DEFAULTS.PAIRED_FEE_BPS,
+          ),
       },
       lockerConfig: {
-        locker: params.locker ?? ADDRESSES.LP_LOCKER,
+        locker: params.locker ?? DEFAULTS.LOCKER,
         rewardAdmins: params.rewardAdmins ?? [account],
         rewardRecipients: params.rewardRecipients ?? [account],
         rewardBps: params.rewardBps ?? [10000],
-        tickLower: params.tickLower ?? [-887220],
-        tickUpper: params.tickUpper ?? [887220],
-        positionBps: params.positionBps ?? [10000],
+        tickLower:
+          params.tickLower ??
+          POOL_POSITIONS.Liquid.map((p) => p.tickLower),
+        tickUpper:
+          params.tickUpper ??
+          POOL_POSITIONS.Liquid.map((p) => p.tickUpper),
+        positionBps:
+          params.positionBps ??
+          POOL_POSITIONS.Liquid.map((p) => p.positionBps),
         lockerData: params.lockerData ?? "0x",
       },
       mevModuleConfig: {
-        mevModule: params.mevModule ?? ADDRESSES.MEV_BLOCK_DELAY,
-        mevModuleData: params.mevModuleData ?? "0x",
+        mevModule: params.mevModule ?? DEFAULTS.MEV_MODULE,
+        mevModuleData:
+          params.mevModuleData ??
+          encodeSniperAuctionData({
+            startingFee: DEFAULTS.SNIPER_STARTING_FEE,
+            endingFee: DEFAULTS.SNIPER_ENDING_FEE,
+            secondsToDecay: DEFAULTS.SNIPER_SECONDS_TO_DECAY,
+          }),
       },
       extensionConfigs: [...(params.extensions ?? [])],
     };
@@ -162,6 +309,9 @@ export class LiquidSDK {
         this.buildDevBuyExtension(params.devBuy)
       );
     }
+
+    // ── Client-side validation ────────────────────────────────────
+    this.validateDeploymentConfig(deploymentConfig);
 
     // Calculate total msg.value from extensions
     const msgValue = deploymentConfig.extensionConfigs.reduce(
@@ -394,7 +544,7 @@ export class LiquidSDK {
       throw new Error("walletClient with account required for claimFees");
     }
 
-    return this.walletClient.writeContract({
+    return await this.walletClient.writeContract({
       address: ADDRESSES.FEE_LOCKER,
       abi: LiquidFeeLockerAbi,
       functionName: "claim",
@@ -441,7 +591,7 @@ export class LiquidSDK {
       throw new Error("walletClient with account required for claimVault");
     }
 
-    return this.walletClient.writeContract({
+    return await this.walletClient.writeContract({
       address: ADDRESSES.VAULT,
       abi: LiquidVaultAbi,
       functionName: "claim",
@@ -602,7 +752,7 @@ export class LiquidSDK {
       throw new Error("walletClient with account required for claimAirdrop");
     }
 
-    return this.walletClient.writeContract({
+    return await this.walletClient.writeContract({
       address: ADDRESSES.AIRDROP_V2,
       abi: LiquidAirdropV2Abi,
       functionName: "claim",
@@ -618,7 +768,7 @@ export class LiquidSDK {
     tokenAddress: Address,
     lockerAddress?: Address
   ): Promise<TokenRewardInfo> {
-    const locker = lockerAddress ?? ADDRESSES.LP_LOCKER;
+    const locker = lockerAddress ?? DEFAULTS.LOCKER;
     const result = await this.publicClient.readContract({
       address: locker,
       abi: LiquidLpLockerAbi,
@@ -646,8 +796,8 @@ export class LiquidSDK {
       throw new Error("walletClient with account required for collectRewards");
     }
 
-    const locker = lockerAddress ?? ADDRESSES.LP_LOCKER;
-    return this.walletClient.writeContract({
+    const locker = lockerAddress ?? DEFAULTS.LOCKER;
+    return await this.walletClient.writeContract({
       address: locker,
       abi: LiquidLpLockerAbi,
       functionName: "collectRewards",
@@ -667,8 +817,8 @@ export class LiquidSDK {
       );
     }
 
-    const locker = lockerAddress ?? ADDRESSES.LP_LOCKER;
-    return this.walletClient.writeContract({
+    const locker = lockerAddress ?? DEFAULTS.LOCKER;
+    return await this.walletClient.writeContract({
       address: locker,
       abi: LiquidLpLockerAbi,
       functionName: "collectRewardsWithoutUnlock",
@@ -690,8 +840,8 @@ export class LiquidSDK {
       );
     }
 
-    const locker = lockerAddress ?? ADDRESSES.LP_LOCKER;
-    return this.walletClient.writeContract({
+    const locker = lockerAddress ?? DEFAULTS.LOCKER;
+    return await this.walletClient.writeContract({
       address: locker,
       abi: LiquidLpLockerAbi,
       functionName: "updateRewardRecipient",
@@ -729,5 +879,168 @@ export class LiquidSDK {
       functionName: "poolUnlockTime",
       args: [poolId],
     })) as bigint;
+  }
+
+  // ── Token Metadata Updates ──────────────────────────────────────────
+
+  /**
+   * Update a token's image. Must be called by the token admin.
+   */
+  async updateImage(tokenAddress: Address, newImage: string): Promise<Hash> {
+    if (!this.walletClient?.account) {
+      throw new Error("walletClient with account required for updateImage");
+    }
+
+    return await this.walletClient.writeContract({
+      address: tokenAddress,
+      abi: LiquidTokenAbi,
+      functionName: "updateImage",
+      args: [newImage],
+      chain: base,
+      account: this.walletClient.account,
+    });
+  }
+
+  /**
+   * Update a token's metadata. Must be called by the token admin.
+   */
+  async updateMetadata(
+    tokenAddress: Address,
+    newMetadata: string
+  ): Promise<Hash> {
+    if (!this.walletClient?.account) {
+      throw new Error("walletClient with account required for updateMetadata");
+    }
+
+    return await this.walletClient.writeContract({
+      address: tokenAddress,
+      abi: LiquidTokenAbi,
+      functionName: "updateMetadata",
+      args: [newMetadata],
+      chain: base,
+      account: this.walletClient.account,
+    });
+  }
+
+  // ── Token Discovery ─────────────────────────────────────────────────
+
+  /**
+   * Get all tokens deployed by a specific address by querying TokenCreated events.
+   * @param deployer - The address that deployed the tokens (msgSender)
+   * @param fromBlock - Starting block to search from (defaults to 0n)
+   * @param toBlock - Ending block to search to (defaults to 'latest')
+   */
+  async getDeployedTokens(
+    deployer: Address,
+    fromBlock?: bigint,
+    toBlock?: bigint | "latest"
+  ): Promise<TokenCreatedEvent[]> {
+    return this.getTokens({ deployer, fromBlock, toBlock });
+  }
+
+  /**
+   * Query TokenCreated events with optional filtering.
+   *
+   * Use this for token discovery, indexing, or building token lists.
+   * Returns events in chronological order with block numbers for pagination.
+   *
+   * @example
+   * // Get all tokens
+   * const allTokens = await sdk.getTokens();
+   *
+   * // Get tokens by deployer
+   * const myTokens = await sdk.getTokens({ deployer: myAddress });
+   *
+   * // Paginate with block ranges
+   * const page1 = await sdk.getTokens({ fromBlock: 20000000n, toBlock: 20100000n });
+   * const page2 = await sdk.getTokens({ fromBlock: 20100001n, toBlock: 20200000n });
+   */
+  async getTokens(options?: GetTokensOptions): Promise<TokenCreatedEvent[]> {
+    const logs = await this.publicClient.getLogs({
+      address: ADDRESSES.FACTORY,
+      event: parseAbiItem(
+        "event TokenCreated(address msgSender, address indexed tokenAddress, address indexed tokenAdmin, string tokenImage, string tokenName, string tokenSymbol, string tokenMetadata, string tokenContext, int24 startingTick, address poolHook, bytes32 poolId, address pairedToken, address locker, address mevModule, uint256 extensionsSupply, address[] extensions)"
+      ),
+      fromBlock: options?.fromBlock ?? 0n,
+      toBlock: options?.toBlock ?? "latest",
+    });
+
+    const deployer = options?.deployer;
+
+    return logs
+      .filter((log) => {
+        if (!deployer) return true;
+        // msgSender is not indexed, so we filter client-side
+        const sender = (log.args as any).msgSender;
+        return sender && getAddress(sender) === getAddress(deployer);
+      })
+      .map((log) => {
+        const args = log.args as any;
+        return {
+          msgSender: args.msgSender,
+          tokenAddress: args.tokenAddress,
+          tokenAdmin: args.tokenAdmin,
+          tokenImage: args.tokenImage,
+          tokenName: args.tokenName,
+          tokenSymbol: args.tokenSymbol,
+          tokenMetadata: args.tokenMetadata,
+          tokenContext: args.tokenContext,
+          startingTick: args.startingTick,
+          poolHook: args.poolHook,
+          poolId: args.poolId,
+          pairedToken: args.pairedToken,
+          locker: args.locker,
+          mevModule: args.mevModule,
+          extensionsSupply: args.extensionsSupply,
+          extensions: args.extensions,
+          blockNumber: log.blockNumber,
+        };
+      });
+  }
+
+  /**
+   * Look up a single token's on-chain event data by contract address.
+   *
+   * Returns the full TokenCreated event including metadata, context, poolId,
+   * hook, locker, extensions — everything a wallet or aggregator needs to
+   * display the token. Returns `null` if not found.
+   *
+   * This is indexed on-chain (tokenAddress is indexed in the event), so it's
+   * a single RPC call regardless of how many tokens exist.
+   */
+  async getTokenEvent(tokenAddress: Address): Promise<TokenCreatedEvent | null> {
+    const logs = await this.publicClient.getLogs({
+      address: ADDRESSES.FACTORY,
+      event: parseAbiItem(
+        "event TokenCreated(address msgSender, address indexed tokenAddress, address indexed tokenAdmin, string tokenImage, string tokenName, string tokenSymbol, string tokenMetadata, string tokenContext, int24 startingTick, address poolHook, bytes32 poolId, address pairedToken, address locker, address mevModule, uint256 extensionsSupply, address[] extensions)"
+      ),
+      args: { tokenAddress },
+      fromBlock: 0n,
+      toBlock: "latest",
+    });
+
+    if (logs.length === 0) return null;
+
+    const log = logs[0];
+    const args = log.args as any;
+    return {
+      msgSender: args.msgSender,
+      tokenAddress: args.tokenAddress,
+      tokenAdmin: args.tokenAdmin,
+      tokenImage: args.tokenImage,
+      tokenName: args.tokenName,
+      tokenSymbol: args.tokenSymbol,
+      tokenMetadata: args.tokenMetadata,
+      tokenContext: args.tokenContext,
+      startingTick: args.startingTick,
+      poolHook: args.poolHook,
+      poolId: args.poolId,
+      pairedToken: args.pairedToken,
+      locker: args.locker,
+      mevModule: args.mevModule,
+      extensionsSupply: args.extensionsSupply,
+      extensions: args.extensions,
+      blockNumber: log.blockNumber,
+    };
   }
 }

@@ -8,4 +8,6 @@ export { LiquidAirdropV2Abi } from "./LiquidAirdropV2";
 export { LiquidPoolExtensionAllowlistAbi } from "./LiquidPoolExtensionAllowlist";
 export { LiquidMevBlockDelayAbi } from "./LiquidMevBlockDelay";
 export { LiquidLpLockerAbi } from "./LiquidLpLocker";
+export { LiquidTokenAbi } from "./LiquidToken";
+export { LiquidUniv4EthDevBuyAbi } from "./LiquidUniv4EthDevBuy";
 export { ERC20Abi } from "./ERC20";

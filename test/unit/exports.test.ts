@@ -17,6 +17,8 @@ import {
   LiquidPoolExtensionAllowlistAbi,
   LiquidMevBlockDelayAbi,
   LiquidLpLockerAbi,
+  LiquidTokenAbi,
+  LiquidUniv4EthDevBuyAbi,
   ERC20Abi,
 } from "../../src/index";
 
@@ -88,6 +90,8 @@ describe("Named exports from index.ts", () => {
     LiquidPoolExtensionAllowlistAbi,
     LiquidMevBlockDelayAbi,
     LiquidLpLockerAbi,
+    LiquidTokenAbi,
+    LiquidUniv4EthDevBuyAbi,
     ERC20Abi,
   };
 

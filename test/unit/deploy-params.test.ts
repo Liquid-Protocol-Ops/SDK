@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { LiquidSDK } from "../../src/client";
-import { ADDRESSES, EXTERNAL } from "../../src/constants";
+import { ADDRESSES, EXTERNAL, DEFAULTS, POOL_POSITIONS } from "../../src/constants";
 
 const MOCK_ACCOUNT = "0x1234567890abcdef1234567890abcdef12345678" as const;
 
@@ -53,9 +53,9 @@ describe("deployToken parameter defaults", () => {
     return call.args[0]; // DeploymentConfig
   }
 
-  it("defaults hook to ADDRESSES.HOOK_DYNAMIC_FEE_V2", async () => {
+  it("defaults hook to ADDRESSES.HOOK_STATIC_FEE_V2", async () => {
     const config = await callDeployAndGetArgs({ name: "Test", symbol: "TST" });
-    expect(config.poolConfig.hook).toBe(ADDRESSES.HOOK_DYNAMIC_FEE_V2);
+    expect(config.poolConfig.hook).toBe(ADDRESSES.HOOK_STATIC_FEE_V2);
   });
 
   it("defaults pairedToken to EXTERNAL.WETH", async () => {
@@ -63,24 +63,24 @@ describe("deployToken parameter defaults", () => {
     expect(config.poolConfig.pairedToken).toBe(EXTERNAL.WETH);
   });
 
-  it("defaults locker to ADDRESSES.LP_LOCKER", async () => {
+  it("defaults locker to ADDRESSES.LP_LOCKER_FEE_CONVERSION", async () => {
     const config = await callDeployAndGetArgs({ name: "Test", symbol: "TST" });
-    expect(config.lockerConfig.locker).toBe(ADDRESSES.LP_LOCKER);
+    expect(config.lockerConfig.locker).toBe(ADDRESSES.LP_LOCKER_FEE_CONVERSION);
   });
 
-  it("defaults mevModule to ADDRESSES.MEV_BLOCK_DELAY", async () => {
+  it("defaults mevModule to ADDRESSES.SNIPER_AUCTION_V2", async () => {
     const config = await callDeployAndGetArgs({ name: "Test", symbol: "TST" });
-    expect(config.mevModuleConfig.mevModule).toBe(ADDRESSES.MEV_BLOCK_DELAY);
+    expect(config.mevModuleConfig.mevModule).toBe(ADDRESSES.SNIPER_AUCTION_V2);
   });
 
-  it("defaults tickIfToken0IsLiquid to -198720", async () => {
+  it("defaults tickIfToken0IsLiquid to -230400", async () => {
     const config = await callDeployAndGetArgs({ name: "Test", symbol: "TST" });
-    expect(config.poolConfig.tickIfToken0IsLiquid).toBe(-198720);
+    expect(config.poolConfig.tickIfToken0IsLiquid).toBe(-230400);
   });
 
-  it("defaults tickSpacing to 60", async () => {
+  it("defaults tickSpacing to 200", async () => {
     const config = await callDeployAndGetArgs({ name: "Test", symbol: "TST" });
-    expect(config.poolConfig.tickSpacing).toBe(60);
+    expect(config.poolConfig.tickSpacing).toBe(200);
   });
 
   it("defaults rewardBps to [10000]", async () => {
@@ -88,19 +88,36 @@ describe("deployToken parameter defaults", () => {
     expect(config.lockerConfig.rewardBps).toEqual([10000]);
   });
 
-  it("defaults positionBps to [10000]", async () => {
+  it("defaults positionBps to Liquid 3-tranche [4000, 5000, 1000]", async () => {
     const config = await callDeployAndGetArgs({ name: "Test", symbol: "TST" });
-    expect(config.lockerConfig.positionBps).toEqual([10000]);
+    expect(config.lockerConfig.positionBps).toEqual([4000, 5000, 1000]);
   });
 
-  it("defaults tickLower to [-887220]", async () => {
+  it("defaults tickLower to Liquid preset", async () => {
     const config = await callDeployAndGetArgs({ name: "Test", symbol: "TST" });
-    expect(config.lockerConfig.tickLower).toEqual([-887220]);
+    expect(config.lockerConfig.tickLower).toEqual(
+      POOL_POSITIONS.Liquid.map((p) => p.tickLower)
+    );
   });
 
-  it("defaults tickUpper to [887220]", async () => {
+  it("defaults tickUpper to Liquid preset", async () => {
     const config = await callDeployAndGetArgs({ name: "Test", symbol: "TST" });
-    expect(config.lockerConfig.tickUpper).toEqual([887220]);
+    expect(config.lockerConfig.tickUpper).toEqual(
+      POOL_POSITIONS.Liquid.map((p) => p.tickUpper)
+    );
+  });
+
+  it("defaults poolData to encoded static 1% fee (not empty 0x)", async () => {
+    const config = await callDeployAndGetArgs({ name: "Test", symbol: "TST" });
+    expect(config.poolConfig.poolData).not.toBe("0x");
+    // Should be a valid hex-encoded ABI string
+    expect(config.poolConfig.poolData).toMatch(/^0x[0-9a-f]+$/);
+  });
+
+  it("defaults mevModuleData to encoded sniper auction (not empty 0x)", async () => {
+    const config = await callDeployAndGetArgs({ name: "Test", symbol: "TST" });
+    expect(config.mevModuleConfig.mevModuleData).not.toBe("0x");
+    expect(config.mevModuleConfig.mevModuleData).toMatch(/^0x[0-9a-f]+$/);
   });
 
   it("generates salt from keccak256(encodePacked(name, symbol, timestamp))", async () => {

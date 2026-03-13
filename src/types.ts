@@ -72,15 +72,15 @@ export interface DeployTokenParams {
   tokenAdmin?: Address;
   salt?: Hex;
 
-  /** Hook address. Defaults to HOOK_DYNAMIC_FEE_V2 */
+  /** Hook address. Defaults to HOOK_STATIC_FEE_V2 (1% fee) */
   hook?: Address;
   /** Quote token. Defaults to WETH */
   pairedToken?: Address;
-  /** Starting tick. Defaults to -198720 (approx $0.001 WETH per token) */
+  /** Starting tick. Defaults to -230400 (≈10 ETH market cap) */
   tickIfToken0IsLiquid?: number;
-  /** Tick spacing. Defaults to 60 */
+  /** Tick spacing. Defaults to 200 */
   tickSpacing?: number;
-  /** Pool-specific hook data */
+  /** Pool-specific hook data. Defaults to static 1% fee encoded for V2 hook */
   poolData?: Hex;
 
   /** LP locker address. Defaults to LP_LOCKER */
@@ -100,9 +100,9 @@ export interface DeployTokenParams {
   /** Locker-specific data */
   lockerData?: Hex;
 
-  /** MEV module address. Defaults to MEV_BLOCK_DELAY */
+  /** MEV module address. Defaults to SNIPER_AUCTION_V2 */
   mevModule?: Address;
-  /** MEV module initialization data */
+  /** MEV module data. Defaults to 80%→40% decay over 32s */
   mevModuleData?: Hex;
 
   /** Extension configs (vault, airdrop, etc.) */
@@ -174,6 +174,18 @@ export interface TokenCreatedEvent {
   mevModule: Address;
   extensionsSupply: bigint;
   extensions: Address[];
+  /** Block number where the token was created (populated by discovery methods) */
+  blockNumber?: bigint;
+}
+
+/** Options for querying deployed tokens. */
+export interface GetTokensOptions {
+  /** Filter by deployer address (msgSender). If omitted, returns all tokens. */
+  deployer?: Address;
+  /** Starting block to search from (defaults to factory deployment block) */
+  fromBlock?: bigint;
+  /** Ending block to search to (defaults to 'latest') */
+  toBlock?: bigint | "latest";
 }
 
 export interface AirdropInfo {

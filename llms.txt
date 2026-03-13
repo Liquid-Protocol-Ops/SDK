@@ -1,0 +1,154 @@
+# liquid-sdk
+
+> TypeScript SDK to deploy ERC-20 tokens with Uniswap V4 liquidity on Base — zero API keys, one dependency (viem)
+
+## Install
+
+```
+npm install liquid-sdk viem
+```
+
+## Quick Start
+
+```typescript
+import { createPublicClient, createWalletClient, http } from "viem";
+import { base } from "viem/chains";
+import { privateKeyToAccount } from "viem/accounts";
+import { LiquidSDK } from "liquid-sdk";
+
+const publicClient = createPublicClient({ chain: base, transport: http() });
+const account = privateKeyToAccount("0x...");
+const walletClient = createWalletClient({ account, chain: base, transport: http() });
+const sdk = new LiquidSDK({ publicClient, walletClient });
+
+const result = await sdk.deployToken({ name: "My Token", symbol: "MTK" });
+console.log(result.tokenAddress);
+```
+
+## What It Does
+
+Liquid Protocol deploys ERC-20 tokens on Base (chain 8453) with:
+- Uniswap V4 liquidity pools (created automatically)
+- Locked LP with configurable reward splits
+- MEV protection (sniper auction or block delay)
+- Optional extensions: dev buy, vault lockup/vesting, merkle airdrops
+
+Every token gets 100 billion supply (18 decimals), a Uniswap V4 pool, and locked liquidity.
+
+## API Methods
+
+### Token Deployment
+- `sdk.deployToken(params)` — Deploy ERC-20 + Uniswap V4 pool. Params: name (required), symbol (required), image, metadata, context, devBuy, hook, tickSpacing, poolData, rewardRecipients, rewardBps, extensions
+- `sdk.buildDevBuyExtension(devBuy)` — Build extension config for buying tokens at launch
+
+### Fee Management
+- `sdk.getAvailableFees(feeOwner, tokenAddress)` — Total unlocked fees (bigint)
+- `sdk.getFeesToClaim(feeOwner, tokenAddress)` — Claimable fees right now (bigint)
+- `sdk.claimFees(feeOwner, tokenAddress)` — Claim fees (returns txHash)
+
+### LP Reward Management
+- `sdk.getTokenRewards(tokenAddress)` — Reward config (recipients, bps, admins, poolKey)
+- `sdk.collectRewards(tokenAddress)` — Collect + unlock LP (returns txHash)
+- `sdk.collectRewardsWithoutUnlock(tokenAddress)` — Collect fees only (returns txHash)
+- `sdk.updateRewardRecipient(tokenAddress, index, newRecipient)` — Change recipient (returns txHash)
+
+### Vault (Token Lockup & Vesting)
+- `sdk.getVaultAllocation(tokenAddress)` — Vault state (total, claimed, lockup/vesting times, admin)
+- `sdk.getVaultClaimable(tokenAddress)` — Tokens available to claim now (bigint)
+- `sdk.claimVault(tokenAddress)` — Claim vested tokens (returns txHash)
+
+### Airdrop
+- `sdk.getAirdropInfo(tokenAddress)` — Airdrop state (merkle root, supply, claimed, times)
+- `sdk.getAirdropClaimable(tokenAddress, recipient, amount)` — Claimable for recipient (bigint)
+- `sdk.claimAirdrop(tokenAddress, recipient, amount, proof)` — Claim airdrop (returns txHash)
+
+### Token Info & Discovery
+- `sdk.getTokenInfo(tokenAddress)` — Name, symbol, decimals, totalSupply, deployment addresses
+- `sdk.getDeploymentInfo(tokenAddress)` — Token, hook, locker, extensions addresses
+- `sdk.getTokens(options?)` — Query all deployed tokens with optional deployer filter and block range pagination. Returns full event data + blockNumber
+- `sdk.getTokenEvent(tokenAddress)` — Look up single token's on-chain event data by address (indexed, single RPC call). Returns metadata, context, poolId, hook, extensions
+- `sdk.getDeployedTokens(deployer, fromBlock?, toBlock?)` — Convenience wrapper for getTokens({ deployer })
+
+### Token Metadata Updates
+- `sdk.updateImage(tokenAddress, newImageUrl)` — Update token image (admin only)
+- `sdk.updateMetadata(tokenAddress, newMetadata)` — Update token metadata (admin only)
+
+### Pool Reads
+- `sdk.getPoolConfig(poolId)` — Dynamic fee configuration
+- `sdk.getPoolFeeState(poolId)` — Current fee state
+- `sdk.getPoolCreationTimestamp(poolId)` — Pool creation time
+- `sdk.isLiquidToken0(poolId)` — Token sort order in pool
+
+### Sniper Auction (MEV)
+- `sdk.getAuctionState(poolId)` — Current auction state (block, round, gasPeg, fee)
+- `sdk.getAuctionFeeConfig(poolId)` — Fee parameters (starting, ending, decay)
+- `sdk.getAuctionDecayStartTime(poolId)` — When fee decay started
+- `sdk.getAuctionMaxRounds()` — Max auction rounds
+- `sdk.getAuctionGasPriceForBid(gasPeg, bidAmount)` — Calculate gas price for bid
+
+### MEV Protection
+- `sdk.getMevBlockDelay()` — Configured block delay
+- `sdk.getPoolUnlockTime(poolId)` — When MEV lock expires (unix timestamp)
+
+### Factory & Allowlist
+- `sdk.isFactoryDeprecated()` — Is factory still active
+- `sdk.isLockerEnabled(locker, hook)` — Is locker approved for hook
+- `sdk.isExtensionEnabled(extension)` — Is extension on allowlist
+
+### Context & Metadata Helpers
+- `buildContext({ interface?, platform?, messageId?, id? })` — Build JSON context string
+- `buildMetadata({ description?, socialMediaUrls?, auditUrls? })` — Build JSON metadata string
+- `parseContext(contextString)` — Parse context JSON to typed object
+- `parseMetadata(metadataString)` — Parse metadata JSON to typed object
+
+## Utility Functions
+
+- `encodeStaticFeePoolData(liquidFeeBps, pairedFeeBps)` — Encode static fee config
+- `encodeDynamicFeePoolData(config)` — Encode dynamic fee config
+- `encodeSniperAuctionData(config)` — Encode MEV auction config
+- `createPositions(startingCapETH, tranches)` — Build position arrays from ETH market caps
+- `createPositionsUSD(startingCapUSD, ethPrice, tranches)` — Build from USD market caps
+- `createDefaultPositions(startingCapUSD, ethPrice)` — Default 3-tranche (40%@$500K, 50%@$10M, 10%@$1B)
+- `describePositions(positions, ethPrice?)` — Human-readable position descriptions
+- `getTickFromMarketCapETH(capETH)` / `getTickFromMarketCapUSD(capUSD, ethPrice)` — Market cap → tick
+- `marketCapFromTickETH(tick)` / `marketCapFromTickUSD(tick, ethPrice)` — Tick → market cap
+
+## Default Values
+
+| Field | Default |
+|-------|---------|
+| hook | Static fee V2 (1% buy fee) |
+| tickSpacing | 200 |
+| tickIfToken0IsLiquid | -230400 (~10 ETH market cap) |
+| positions | 3-tranche: 40% to $500K, 50% to $10M, 10% to $1B |
+| mevModule | Sniper Auction V2 (80%→40% over 32s) |
+| rewardRecipients | [deployer] at 100% |
+| context | {"interface":"SDK"} |
+
+## Contract Addresses (Base Mainnet)
+
+- Factory: 0x0000003482fe299E72d4908368044A8A173BE576
+- LP Locker: 0x00000548732DfA56Be1257cE44D0CFc3B46dDb2A
+- LP Locker Fee Conversion: 0x00000547518784420CEeF761fb18D884bb908102 (default)
+- Fee Locker: 0x000008B9242b7e4432f6c4b1EeAD93562f9Cc94d
+- Vault: 0x000001c5263F4d64CdC343cDA9C8bF961CF8376c
+- Hook (Dynamic Fee V2): 0x2A2F73CDDa098d639bd8Bbcd7dF2bf24E06728cC
+- Hook (Static Fee V2): 0xb2401c5369AaCF62F8d615623C7F68F84da428Cc
+- Sniper Auction V2: 0x000007b64003ee07a69576F98859a0a36b854260
+- MEV Block Delay: 0x0000035D83588954F3c581c3A66251b3F06AD5e4
+- Airdrop V2: 0x00000C222442512b08446D33dd9754a7F260BE79
+- Dev Buy Extension: 0x00000d7DE1f0A3FA7957F5d8A2b97B0E24e5783D
+- WETH (Base): 0x4200000000000000000000000000000000000006
+- Pool Manager (Uniswap V4): 0x498581fF718922c3f8e6A244956aF099B2652b2b
+
+## Docs
+
+- README.md: Usage guide with code examples
+- AGENT_README.md: Complete API reference for AI agents and developers (700+ lines)
+- CHANGELOG.md: Version history
+- examples/: 8 runnable TypeScript examples
+
+## Links
+
+- NPM: https://www.npmjs.com/package/liquid-sdk
+- GitHub: https://github.com/craigbots/liquid-sdk
