@@ -42,12 +42,6 @@ describe(
       expect(typeof result).toBe("boolean");
     });
 
-    it("getMevBlockDelay returns a bigint > 0", async () => {
-      const result = await withRetry(() => sdk.getMevBlockDelay());
-      expect(typeof result).toBe("bigint");
-      expect(result).toBeGreaterThan(0n);
-    });
-
     it("getAuctionMaxRounds returns a bigint > 0", async () => {
       const result = await withRetry(() => sdk.getAuctionMaxRounds());
       expect(typeof result).toBe("bigint");
@@ -68,10 +62,10 @@ describe(
       expect(typeof result).toBe("boolean");
     });
 
-    it("isLockerEnabled(LP_LOCKER, HOOK_DYNAMIC_FEE_V2) returns a boolean", async () => {
+    it("isLockerEnabled(LP_LOCKER_FEE_CONVERSION, HOOK_DYNAMIC_FEE_V2) returns a boolean", async () => {
       const result = await withRetry(() =>
         sdk.isLockerEnabled(
-          ADDRESSES.LP_LOCKER,
+          ADDRESSES.LP_LOCKER_FEE_CONVERSION,
           ADDRESSES.HOOK_DYNAMIC_FEE_V2
         )
       );

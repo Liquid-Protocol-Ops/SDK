@@ -223,7 +223,7 @@ export interface TokenRewardInfo {
 }
 
 export interface LiquidSDKConfig {
-  publicClient: any; // viem PublicClient
+  publicClient?: any; // viem PublicClient — auto-created if omitted
   walletClient?: any; // viem WalletClient
 }
 

@@ -4,6 +4,8 @@ import {
   type Hex,
   type PublicClient,
   type WalletClient,
+  createPublicClient,
+  http,
   decodeEventLog,
   encodeAbiParameters,
   encodePacked,
@@ -52,7 +54,10 @@ export class LiquidSDK {
   public readonly walletClient?: WalletClient;
 
   constructor(config: LiquidSDKConfig) {
-    this.publicClient = config.publicClient;
+    this.publicClient = config.publicClient ?? createPublicClient({
+      chain: base,
+      transport: http(),
+    });
     this.walletClient = config.walletClient;
   }
 
@@ -881,7 +886,7 @@ export class LiquidSDK {
 
   async getMevBlockDelay(): Promise<bigint> {
     return (await this.publicClient.readContract({
-      address: ADDRESSES.MEV_BLOCK_DELAY,
+      address: ADDRESSES.MEV_DESCENDING_FEES,
       abi: LiquidMevBlockDelayAbi,
       functionName: "blockDelay",
     })) as bigint;
@@ -889,7 +894,7 @@ export class LiquidSDK {
 
   async getPoolUnlockTime(poolId: Hex): Promise<bigint> {
     return (await this.publicClient.readContract({
-      address: ADDRESSES.MEV_BLOCK_DELAY,
+      address: ADDRESSES.MEV_DESCENDING_FEES,
       abi: LiquidMevBlockDelayAbi,
       functionName: "poolUnlockTime",
       args: [poolId],

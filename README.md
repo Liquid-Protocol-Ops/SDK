@@ -13,17 +13,12 @@ npm install liquid-sdk viem
 ## Quick Start
 
 ```typescript
-import { createPublicClient, createWalletClient, http } from "viem";
+import { createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { base } from "viem/chains";
 import { LiquidSDK } from "liquid-sdk";
 
 const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
-
-const publicClient = createPublicClient({
-  chain: base,
-  transport: http(),
-});
 
 const walletClient = createWalletClient({
   account,
@@ -31,7 +26,7 @@ const walletClient = createWalletClient({
   transport: http(),
 });
 
-const liquid = new LiquidSDK({ publicClient, walletClient });
+const liquid = new LiquidSDK({ walletClient });
 ```
 
 ## Deploy a Token
@@ -219,11 +214,11 @@ import {
 #### Constructor
 
 ```typescript
-new LiquidSDK({ publicClient, walletClient? })
+new LiquidSDK({ walletClient, publicClient? })
 ```
 
-- `publicClient` (required) - viem `PublicClient` connected to Base
 - `walletClient` (optional) - viem `WalletClient` for write operations
+- `publicClient` (optional) - viem `PublicClient` connected to Base (auto-created if omitted)
 
 #### Methods
 
