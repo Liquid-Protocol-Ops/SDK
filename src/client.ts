@@ -32,6 +32,8 @@ import { LiquidTokenAbi } from "./abis/LiquidToken";
 import { ERC20Abi } from "./abis/ERC20";
 import type {
   AirdropInfo,
+  BidInAuctionParams,
+  BidInAuctionResult,
   DeployTokenParams,
   DeployTokenResult,
   DevBuyParams,
@@ -724,6 +726,87 @@ export class LiquidSDK {
       functionName: "getTxGasPriceForBidAmount",
       args: [auctionGasPeg, desiredBidAmount],
     })) as bigint;
+  }
+
+  /**
+   * Bid in a sniper auction for early access to a newly launched token.
+   *
+   * The auction lets bidders compete via gas price — the bid amount is
+   * determined by how much your tx.gasprice exceeds the pool's gasPeg.
+   *
+   * @example
+   * ```typescript
+   * // 1. Get auction state
+   * const state = await sdk.getAuctionState(poolId);
+   *
+   * // 2. Calculate gas price for desired bid
+   * const gasPrice = await sdk.getAuctionGasPriceForBid(state.gasPeg, bidAmount);
+   *
+   * // 3. Get pool key from token rewards
+   * const rewards = await sdk.getTokenRewards(tokenAddress);
+   *
+   * // 4. Bid
+   * const result = await sdk.bidInAuction({
+   *   poolKey: rewards.poolKey,
+   *   zeroForOne: true,            // ETH → token
+   *   amountIn: parseEther("0.1"), // swap 0.1 ETH
+   *   amountOutMinimum: 0n,        // set slippage
+   *   round: state.round,
+   *   bidAmount: parseEther("0.01"),
+   * }, gasPrice);
+   * ```
+   */
+  async bidInAuction(
+    params: BidInAuctionParams,
+    maxFeePerGas: bigint,
+  ): Promise<BidInAuctionResult> {
+    if (!this.walletClient?.account) {
+      throw new Error("walletClient with account required for bidInAuction");
+    }
+
+    // Encode hookData as PoolSwapData { mevModuleSwapData: sniperUtilAddress, poolExtensionSwapData: "" }
+    const hookData = encodeAbiParameters(
+      [
+        {
+          type: "tuple",
+          components: [
+            { type: "bytes", name: "mevModuleSwapData" },
+            { type: "bytes", name: "poolExtensionSwapData" },
+          ],
+        },
+      ],
+      [
+        {
+          mevModuleSwapData: encodeAbiParameters(
+            [{ type: "address" }],
+            [ADDRESSES.SNIPER_UTIL_V2]
+          ),
+          poolExtensionSwapData: "0x",
+        },
+      ]
+    );
+
+    const txHash = await this.walletClient.writeContract({
+      address: ADDRESSES.SNIPER_UTIL_V2,
+      abi: LiquidSniperUtilV2Abi,
+      functionName: "bidInAuction",
+      args: [
+        {
+          poolKey: params.poolKey,
+          zeroForOne: params.zeroForOne,
+          amountIn: params.amountIn,
+          amountOutMinimum: params.amountOutMinimum,
+          hookData,
+        },
+        params.round,
+      ],
+      value: params.bidAmount,
+      chain: base,
+      account: this.walletClient.account,
+      maxFeePerGas,
+    });
+
+    return { txHash };
   }
 
   // ── Airdrop ─────────────────────────────────────────────────────────

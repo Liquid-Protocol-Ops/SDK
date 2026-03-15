@@ -88,9 +88,9 @@ describe("deployToken parameter defaults", () => {
     expect(config.lockerConfig.rewardBps).toEqual([10000]);
   });
 
-  it("defaults positionBps to Liquid 3-tranche [4000, 5000, 1000]", async () => {
+  it("defaults positionBps to Liquid 5-position [1000, 5000, 1500, 2000, 500]", async () => {
     const config = await callDeployAndGetArgs({ name: "Test", symbol: "TST" });
-    expect(config.lockerConfig.positionBps).toEqual([4000, 5000, 1000]);
+    expect(config.lockerConfig.positionBps).toEqual([1000, 5000, 1500, 2000, 500]);
   });
 
   it("defaults tickLower to Liquid preset", async () => {

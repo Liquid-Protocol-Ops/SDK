@@ -227,6 +227,27 @@ export interface LiquidSDKConfig {
   walletClient?: any; // viem WalletClient
 }
 
+// ── Sniper Auction Bid types ─────────────────────────────────────────
+
+export interface BidInAuctionParams {
+  /** The pool key identifying the token's Uniswap V4 pool */
+  poolKey: PoolKey;
+  /** True if swapping token0 → token1 (typically ETH → token) */
+  zeroForOne: boolean;
+  /** Amount of input token (in wei) */
+  amountIn: bigint;
+  /** Minimum output tokens to receive (slippage protection) */
+  amountOutMinimum: bigint;
+  /** The auction round to bid in (must match current round on-chain) */
+  round: bigint;
+  /** ETH bid amount — sent as msg.value, must equal (gasPrice - gasPeg) × paymentPerGasUnit */
+  bidAmount: bigint;
+}
+
+export interface BidInAuctionResult {
+  txHash: Hash;
+}
+
 export interface DeployTokenResult {
   tokenAddress: Address;
   txHash: Hash;

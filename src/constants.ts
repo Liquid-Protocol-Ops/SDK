@@ -96,22 +96,32 @@ export const POOL_POSITIONS = {
     },
   ] as PoolPosition[],
 
-  /** 3-tranche Liquid default (hardcoded for ~10 ETH start, ~$2070/ETH) */
+  /** 5-position layout with concentrated mid-range liquidity */
   Liquid: [
     {
-      tickLower: -230400, // ~$20K starting
-      tickUpper: -198600, // ~$500K
-      positionBps: 4_000, // 40%
+      tickLower: -230400,
+      tickUpper: -216000,
+      positionBps: 1_000, // 10%
     },
     {
-      tickLower: -198600, // ~$500K
-      tickUpper: -168600, // ~$10M
+      tickLower: -216000,
+      tickUpper: -155000,
       positionBps: 5_000, // 50%
     },
     {
-      tickLower: -168600, // ~$10M
-      tickUpper: -122600, // ~$1B
-      positionBps: 1_000, // 10%
+      tickLower: -202000,
+      tickUpper: -155000,
+      positionBps: 1_500, // 15%
+    },
+    {
+      tickLower: -155000,
+      tickUpper: -120000,
+      positionBps: 2_000, // 20%
+    },
+    {
+      tickLower: -141000,
+      tickUpper: -120000,
+      positionBps: 500,   // 5%
     },
   ] as PoolPosition[],
 } as const;

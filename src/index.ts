@@ -50,6 +50,8 @@ export type {
 } from "./utils";
 export type {
   AirdropInfo,
+  BidInAuctionParams,
+  BidInAuctionResult,
   DeployTokenParams,
   DeployTokenResult,
   DeploymentConfig,

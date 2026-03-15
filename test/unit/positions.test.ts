@@ -238,16 +238,17 @@ describe("POOL_POSITIONS presets", () => {
     expect(POOL_POSITIONS.Standard[0].positionBps).toBe(10_000);
   });
 
-  it("Liquid has 3 positions with 40/50/10 split", () => {
-    expect(POOL_POSITIONS.Liquid).toHaveLength(3);
+  it("Liquid has 5 positions with 10/50/15/20/5 split", () => {
+    expect(POOL_POSITIONS.Liquid).toHaveLength(5);
     const bps = POOL_POSITIONS.Liquid.map((p) => p.positionBps);
-    expect(bps).toEqual([4000, 5000, 1000]);
+    expect(bps).toEqual([1000, 5000, 1500, 2000, 500]);
     expect(bps.reduce((s, b) => s + b, 0)).toBe(10_000);
   });
 
-  it("Liquid positions are contiguous", () => {
-    expect(POOL_POSITIONS.Liquid[1].tickLower).toBe(POOL_POSITIONS.Liquid[0].tickUpper);
-    expect(POOL_POSITIONS.Liquid[2].tickLower).toBe(POOL_POSITIONS.Liquid[1].tickUpper);
+  it("Liquid positions all have valid tick ranges", () => {
+    for (const pos of POOL_POSITIONS.Liquid) {
+      expect(pos.tickLower).toBeLessThan(pos.tickUpper);
+    }
   });
 
   it("all position ticks are aligned to 200", () => {
