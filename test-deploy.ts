@@ -15,7 +15,7 @@ import "dotenv/config";
 import { createPublicClient, createWalletClient, http, formatEther, parseEther } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { base } from "viem/chains";
-import { LiquidSDK, ADDRESSES, DEFAULT_POSITIONS } from "./src";
+import { LiquidSDK, ADDRESSES, POOL_POSITIONS, DEFAULTS } from "./src";
 
 // ── Config ──────────────────────────────────────────────────────────
 
@@ -73,15 +73,15 @@ async function main() {
   console.log("");
   console.log("--- Contracts ---");
   console.log("Factory:", ADDRESSES.FACTORY);
-  console.log("Hook:", ADDRESSES.HOOK_DYNAMIC_FEE_V2);
-  console.log("Locker:", ADDRESSES.LP_LOCKER_FEE_CONVERSION);
-  console.log("MEV:", ADDRESSES.MEV_DESCENDING_FEES);
+  console.log("Hook:", DEFAULTS.HOOK);
+  console.log("Locker:", DEFAULTS.LOCKER);
+  console.log("MEV:", DEFAULTS.MEV_MODULE);
   console.log("");
   console.log("--- Default Config ---");
-  console.log("Starting MC: ~$15K (7.5 ETH at $2000/ETH)");
-  console.log("Positions:", DEFAULT_POSITIONS.tickLower.length, "(Project layout)");
-  console.log("Fee preference: WETH-only (FeeIn.Paired)");
-  console.log("MEV: Descending fees 80% → 5% over 30s");
+  console.log("Starting MC: ~10 ETH (~$20K at $2000/ETH)");
+  console.log("Positions:", POOL_POSITIONS.Liquid.length, "(Liquid 5-position layout)");
+  console.log("Fee: Static 1% buy, 0% sell (fees in ETH)");
+  console.log("MEV: Sniper Auction 80% → 40% over 32s");
   console.log("Rewards: 100% to deployer");
   console.log("Dev buy:", DEV_BUY_ETH, "ETH (proves pool is swappable)");
   console.log("");

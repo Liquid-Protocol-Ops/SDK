@@ -6,7 +6,7 @@
 
 ## What Is This Project?
 
-**liquid-sdk** (`v0.1.0`) is a TypeScript SDK for the Liquid Protocol token launcher on Base (chain ID 8453). It deploys ERC-20 tokens with permanent, locked Uniswap V4 liquidity pools and provides read/write helpers for pool state, fee claiming, vaults, airdrops, and auctions.
+**liquid-sdk** (`v1.5.1`) is a TypeScript SDK for the Liquid Protocol token launcher on Base (chain ID 8453). It deploys ERC-20 tokens with permanent, locked Uniswap V4 liquidity pools and provides read/write helpers for pool state, fee claiming, vaults, airdrops, auctions, and MEV bidding.
 
 ---
 
@@ -15,11 +15,11 @@
 ```
 User calls sdk.deployToken(params)
   └─► Factory deploys token + Uniswap V4 pool
-       ├─► Hook (Dynamic Fee V2) controls LP fee (0.5% – 5%)
-       ├─► MEV module charges ~80% fee decaying to 5% over 30s (sniper protection)
-       ├─► LP Locker permanently locks all liquidity (5-position "Project" layout)
-       ├─► Fee Locker accumulates creator rewards in WETH (FeeIn.Paired)
-       └─► Optional extensions: dev buy, vault, airdrop, presale
+       ├─► Hook (Static Fee V2) charges 1% on buys, 0% on sells
+       ├─► MEV module (Sniper Auction V2) charges 80% → 40% decaying over 32s
+       ├─► LP Locker permanently locks all liquidity (5-position "Liquid" layout)
+       ├─► Fee Locker accumulates creator rewards in WETH (FeePreference.Paired)
+       └─► Optional extensions: dev buy, vault, airdrop
 ```
 
 Tokens are:
@@ -124,90 +124,119 @@ const result = await sdk.deployToken({
 });
 ```
 
+**Build dev buy extension manually:**
+```typescript
+const ext = sdk.buildDevBuyExtension({ ethAmount: parseEther("0.1"), recipient: "0x..." });
+```
+
 ### Deployment Defaults
 
 | Parameter | Default Value |
 |-----------|---------------|
-| `hook` | `HOOK_DYNAMIC_FEE_V2` |
+| `hook` | `HOOK_STATIC_FEE_V2` (1% buy fee, 0% sell fee) |
 | `pairedToken` | `WETH` |
-| `tickIfToken0IsLiquid` | `-233160` (~$15K MC at $2000/ETH) |
-| `tickSpacing` | `60` |
+| `tickIfToken0IsLiquid` | `-230400` (~10 ETH / ~$20K market cap) |
+| `tickSpacing` | `200` |
 | `locker` | `LP_LOCKER_FEE_CONVERSION` |
 | `rewardRecipients` | `[deployer]` (100%) |
-| `positionBps` | `[1000, 5000, 1500, 2000, 500]` (5-position layout) |
-| `mevModule` | `MEV_DESCENDING_FEES` (80% -> 5% over 30s) |
-| `lockerData` | `FeeIn.Paired` (WETH-only fee accumulation) |
+| `positionBps` | `[1000, 5000, 1500, 2000, 500]` (5-position Liquid layout) |
+| `mevModule` | `SNIPER_AUCTION_V2` (80% → 40% over 32s) |
+| `lockerData` | `FeePreference.Paired` (ETH-only fee accumulation) |
+| `poolData` | `encodeStaticFeePoolData(0, 100)` (0% sell, 1% buy) |
+
+### Token Discovery
+
+```typescript
+await sdk.getTokens(options?)                       // → TokenCreatedEvent[] (all tokens, with optional filters)
+await sdk.getTokenEvent(tokenAddress)               // → TokenCreatedEvent | null (single lookup, indexed O(1))
+await sdk.getDeployedTokens(deployer, from?, to?)   // → TokenCreatedEvent[] (by deployer)
+```
 
 ### Pool & Token Info (read-only)
 
 ```typescript
-await sdk.getDeploymentInfo(tokenAddress)    // → { token, hook, locker, extensions }
-await sdk.getTokenInfo(tokenAddress)         // → { address, name, symbol, decimals, totalSupply, deployment }
-await sdk.getPoolConfig(poolId)              // → PoolDynamicConfigVars
-await sdk.getPoolFeeState(poolId)            // → PoolDynamicFeeVars (includes lastSwapTimestamp)
-await sdk.getPoolCreationTimestamp(poolId)    // → bigint
-await sdk.isLiquidToken0(poolId)             // → boolean
+await sdk.getDeploymentInfo(tokenAddress)            // → { token, hook, locker, extensions }
+await sdk.getTokenInfo(tokenAddress)                 // → { address, name, symbol, decimals, totalSupply, deployment }
+await sdk.getPoolConfig(poolId)                      // → PoolDynamicConfigVars
+await sdk.getPoolFeeState(poolId)                    // → PoolDynamicFeeVars
+await sdk.getPoolCreationTimestamp(poolId)            // → bigint
+await sdk.isLiquidToken0(poolId)                     // → boolean
 ```
 
 ### Fee Claims
 
 ```typescript
-await sdk.getAvailableFees(owner, token)     // → bigint (uncollected fees)
-await sdk.getFeesToClaim(owner, token)        // → bigint (collected, claimable WETH)
-await sdk.claimFees(owner, token)            // → Hash (write)
-await sdk.getTokenRewards(token)             // → TokenRewardInfo (poolKey, recipients, bps)
-await sdk.collectRewards(token)              // → Hash (write - collect from LP positions)
-await sdk.collectRewardsWithoutUnlock(token)  // → Hash (write)
+await sdk.getAvailableFees(owner, token)             // → bigint (uncollected fees)
+await sdk.getFeesToClaim(owner, token)                // → bigint (collected, claimable WETH)
+await sdk.claimFees(owner, token)                    // → Hash (write)
+await sdk.getTokenRewards(token)                     // → TokenRewardInfo (poolKey, recipients, bps)
+await sdk.collectRewards(token)                      // → Hash (write - collect from LP positions)
+await sdk.collectRewardsWithoutUnlock(token)          // → Hash (write)
 await sdk.updateRewardRecipient(token, idx, newRecipient) // → Hash (write)
+```
+
+### Token Metadata Updates
+
+```typescript
+await sdk.updateImage(tokenAddress, newImageUrl)     // → Hash (write, admin only)
+await sdk.updateMetadata(tokenAddress, newMetadata)  // → Hash (write, admin only)
 ```
 
 ### Vault
 
 ```typescript
-await sdk.getVaultAllocation(token)          // → VaultAllocation
-await sdk.getVaultClaimable(token)           // → bigint
-await sdk.claimVault(token)                  // → Hash (write)
+await sdk.getVaultAllocation(token)                  // → VaultAllocation
+await sdk.getVaultClaimable(token)                   // → bigint
+await sdk.claimVault(token)                          // → Hash (write)
 ```
 
 ### Airdrop
 
 ```typescript
-await sdk.getAirdropInfo(token)              // → AirdropInfo
+await sdk.getAirdropInfo(token)                      // → AirdropInfo
 await sdk.getAirdropClaimable(token, recipient, allocatedAmount) // → bigint
 await sdk.claimAirdrop(token, recipient, allocatedAmount, proof) // → Hash (write)
 ```
 
-### Sniper Auction
+### Sniper Auction (MEV)
 
 ```typescript
-await sdk.getAuctionState(poolId)            // → SniperAuctionState
-await sdk.getAuctionFeeConfig(poolId)        // → SniperAuctionFeeConfig
-await sdk.getAuctionDecayStartTime(poolId)   // → bigint
-await sdk.getAuctionMaxRounds()              // → bigint
-await sdk.getAuctionGasPriceForBid(gasPeg, amount) // → bigint
+await sdk.getAuctionState(poolId)                    // → SniperAuctionState
+await sdk.getAuctionFeeConfig(poolId)                // → SniperAuctionFeeConfig
+await sdk.getAuctionDecayStartTime(poolId)           // → bigint
+await sdk.getAuctionMaxRounds()                      // → bigint
+await sdk.getAuctionGasPriceForBid(gasPeg, amount)   // → bigint
+await sdk.bidInAuction(params, maxFeePerGas)         // → { txHash } (write)
+```
+
+### MEV Protection
+
+```typescript
+await sdk.getMevBlockDelay()                         // → bigint
+await sdk.getPoolUnlockTime(poolId)                  // → bigint (unix timestamp)
 ```
 
 ### Factory Status
 
 ```typescript
-await sdk.isFactoryDeprecated()              // → boolean
-await sdk.isLockerEnabled(locker, hook)      // → boolean
-await sdk.isExtensionEnabled(extension)      // → boolean
+await sdk.isFactoryDeprecated()                      // → boolean
+await sdk.isLockerEnabled(locker, hook)              // → boolean
+await sdk.isExtensionEnabled(extension)              // → boolean
 ```
 
 ---
 
 ## Pool Key Structure
 
-For any Liquid token, the pool key is always:
+For any Liquid token, the pool key is:
 
 ```typescript
 const poolKey = {
-  currency0:   EXTERNAL.WETH,              // always WETH (0x4200...)
-  currency1:   tokenAddress,               // deployed token (always > WETH numerically)
-  fee:         8388608,                     // 0x800000 — dynamic fee flag
-  tickSpacing: 60,
-  hooks:       ADDRESSES.HOOK_DYNAMIC_FEE_V2,
+  currency0:   EXTERNAL.WETH,                   // always WETH (0x4200...)
+  currency1:   tokenAddress,                    // deployed token (always > WETH numerically)
+  fee:         8388608,                          // 0x800000 — dynamic fee flag
+  tickSpacing: 200,                              // Liquid default
+  hooks:       ADDRESSES.HOOK_STATIC_FEE_V2,    // default hook
 };
 ```
 
@@ -225,8 +254,8 @@ const poolKey = rewards.poolKey;
 
 ## Swap Architecture (not in SDK — manual Universal Router calls)
 
-The SDK does NOT include a swap method. Swaps require direct Universal Router interaction.
-See `test-swap.ts` (buy/ETH->token) and `test-sell.ts` (sell/token->ETH) for working examples.
+The SDK does NOT include a generic swap method (only `bidInAuction` for auction swaps). Swaps require direct Universal Router interaction.
+See `test-swap.ts` (buy/ETH->token) and `test-swap-out.ts` (sell/token->ETH) for working examples.
 
 ### Uniswap V4 Action Constants (from Actions.sol)
 
@@ -285,11 +314,11 @@ V4_SWAP actions: 0x06 0x0c 0x0f  (SWAP_EXACT_IN_SINGLE, SETTLE_ALL, TAKE_ALL)
 
 | Layer | Rate | Notes |
 |-------|------|-------|
-| Dynamic LP Fee | 0.5% – 5% | Scales with price volatility |
+| Static LP Fee | 1% on buys, 0% on sells | Fees collected in ETH (paired token) |
 | Protocol Fee | 20% of LP fee | Goes to Liquid Protocol team |
-| MEV Fee | 5% – 80% | Decays from 80% to 5% over 30s after pool launch |
+| MEV Fee (Sniper Auction) | 80% → 40% | Decays from 80% to 40% over 32 seconds after pool launch |
 
-Fee denominator: `1,000,000`. So `5000 = 0.5%`, `50000 = 5%`, `666777 = ~66.7%`.
+Fee denominator: `1,000,000`. So `10000 = 1%`, `100000 = 10%`, `800000 = 80%`.
 
 ### Fee Claiming Flow
 
@@ -306,35 +335,62 @@ await sdk.claimFees(feeOwnerAddress, tokenAddress);
 
 ---
 
-## Default Position Layout (5-position "Project" layout)
+## Default Position Layout (5-position "Liquid" layout)
 
 ```typescript
-const DEFAULT_POSITIONS = {
-  tickLower:   [-233160, -216060, -202020, -155040, -141060],
-  tickUpper:   [-216060, -155040, -155040, -120060, -120060],
-  positionBps: [1000,     5000,    1500,    2000,    500],
-  // Total: 10000 BPS = 100%
+const POOL_POSITIONS = {
+  Liquid: [
+    { tickLower: -230400, tickUpper: -216000, positionBps: 1000 },   // 10%
+    { tickLower: -216000, tickUpper: -155000, positionBps: 5000 },   // 50%
+    { tickLower: -202000, tickUpper: -155000, positionBps: 1500 },   // 15%
+    { tickLower: -155000, tickUpper: -120000, positionBps: 2000 },   // 20%
+    { tickLower: -141000, tickUpper: -120000, positionBps: 500 },    // 5%
+  ],
 };
+// Total: 10000 BPS = 100%
 ```
 
 ---
 
 ## Exported ABIs
 
-The SDK exports 10 ABIs:
+The SDK exports 13 ABIs:
 
 | ABI | Contract |
 |-----|----------|
 | `LiquidFactoryAbi` | Factory (deployToken, tokenDeploymentInfo) |
 | `LiquidFeeLockerAbi` | FeeLocker (claim, availableFees, feesToClaim) |
-| `LiquidHookDynamicFeeV2Abi` | Hook (poolConfigVars, poolFeeVars, liquidIsToken0) |
+| `LiquidHookDynamicFeeV2Abi` | Dynamic Fee Hook (poolConfigVars, poolFeeVars, liquidIsToken0) |
 | `LiquidVaultAbi` | Vault (allocation, claim, amountAvailableToClaim) |
 | `LiquidSniperAuctionV2Abi` | Auction (round, gasPeg, getFee, feeConfig) |
-| `LiquidSniperUtilV2Abi` | Sniper (bidInAuction, getTxGasPriceForBidAmount) |
+| `LiquidSniperUtilV2Abi` | Sniper Util (bidInAuction, getTxGasPriceForBidAmount) |
 | `LiquidAirdropV2Abi` | Airdrop (airdrops, claim, amountAvailableToClaim) |
 | `LiquidPoolExtensionAllowlistAbi` | Extension allowlist |
-| `LiquidLpLockerFeeConversionAbi` | LP Locker (tokenRewards, collectRewards) |
+| `LiquidMevBlockDelayAbi` | MEV Block Delay (blockDelay, poolUnlockTime) |
+| `LiquidLpLockerAbi` | LP Locker (tokenRewards, collectRewards, updateRewardRecipient, updateRewardAdmin) |
+| `LiquidTokenAbi` | Token (updateImage, updateMetadata, updateAdmin) |
+| `LiquidUniv4EthDevBuyAbi` | Dev Buy Extension (receiveTokens) |
 | `ERC20Abi` | Standard ERC-20 (name, symbol, balanceOf, approve, transfer) |
+
+---
+
+## Utility Functions
+
+```typescript
+import {
+  encodeStaticFeePoolData,     // Encode static fee pool config
+  encodeDynamicFeePoolData,    // Encode dynamic fee pool config
+  encodeSniperAuctionData,     // Encode MEV auction config
+  createPositions,             // Build positions from ETH market caps
+  createPositionsUSD,          // Build positions from USD market caps
+  createDefaultPositions,      // Default 3-tranche (40%@$500K, 50%@$10M, 10%@$1B)
+  describePositions,           // Human-readable position descriptions
+  buildContext,                // Build deployment context JSON
+  buildMetadata,               // Build token metadata JSON
+  parseContext,                // Parse context JSON string
+  parseMetadata,               // Parse metadata JSON string
+} from "liquid-sdk";
+```
 
 ---
 
@@ -346,7 +402,8 @@ The SDK exports 10 ABIs:
 4. Reward BPS splits are immutable after deployment. Only recipient/admin addresses can change.
 5. Never use `amountOutMinimum = 0` in production swaps.
 6. All write methods require `walletClient` with `account` — they throw if not provided.
-7. `DEFAULT_POSITIONS` arrays are `readonly` — spread them (`[...DEFAULT_POSITIONS.tickLower]`) when assigning to mutable arrays.
+7. `POOL_POSITIONS` arrays are `readonly` — spread them (`[...POOL_POSITIONS.Liquid]`) when assigning to mutable arrays.
+8. Default tick spacing is `200`, NOT `60`. Default hook is `HOOK_STATIC_FEE_V2`, NOT dynamic.
 
 ---
 
@@ -355,20 +412,23 @@ The SDK exports 10 ABIs:
 ```
 src/
   client.ts       — LiquidSDK class (all methods)
-  types.ts        — TypeScript interfaces (20 types)
+  types.ts        — TypeScript interfaces (25+ types)
   constants.ts    — Addresses, fee constants, positions, chain config
   index.ts        — Public exports
-  abis/           — 10 contract ABI files + index
+  abis/           — 13 contract ABI files + index
+  utils/          — Encoding, positions, tick math, context/metadata helpers
 
 test/
   unit/           — 5 test files (exports, constants, ABIs, client, deploy-params)
   integration/    — read-contracts.test.ts (live Base mainnet reads)
   build.test.ts   — Verifies npm run build produces output
 
+skills/           — Agent skill files (deploy, bid-in-auction, index-tokens)
+examples/         — 8 runnable TypeScript examples
+
 test-deploy.ts    — Example: deploy a token (with optional devBuy)
 test-swap.ts      — Example: buy token with ETH via Universal Router
-test-sell.ts      — Example: sell token for ETH via Universal Router
-test-claim-fees.ts — Example: collect and claim protocol fees
+test-swap-out.ts  — Example: sell token for ETH via Universal Router
 ```
 
 ---
@@ -378,7 +438,7 @@ test-claim-fees.ts — Example: collect and claim protocol fees
 ```bash
 npm run build        # tsup → dist/
 npm run typecheck    # tsc --noEmit
-npm test             # vitest (130 tests)
+npm test             # vitest (182 tests)
 npm run test:unit    # unit tests only
 npm run test:integration  # live contract reads (needs RPC)
 ```
@@ -390,4 +450,4 @@ npm run test:integration  # live contract reads (needs RPC)
 - Forked from: Clanker v4
 - Audits: 0xMacro (A-3), Cantina
 - Source: https://github.com/Liquid-Protocol-Ops/SDK
-- SDK: `npm install liquid-sdk`
+- NPM: `npm install liquid-sdk`

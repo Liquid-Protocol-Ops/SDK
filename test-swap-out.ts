@@ -27,7 +27,7 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { base } from "viem/chains";
-import { ADDRESSES, EXTERNAL } from "./src";
+import { ADDRESSES, EXTERNAL, DEFAULTS } from "./src";
 
 // ── Config ──────────────────────────────────────────────────────────
 
@@ -152,8 +152,8 @@ function buildPoolKey(token: Address) {
     currency0: c0,
     currency1: c1,
     fee: 0x800000,
-    tickSpacing: 60,
-    hooks: ADDRESSES.HOOK_DYNAMIC_FEE_V2,
+    tickSpacing: DEFAULTS.TICK_SPACING,
+    hooks: DEFAULTS.HOOK,
   };
 }
 

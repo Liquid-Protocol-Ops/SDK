@@ -19,8 +19,7 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { base } from "viem/chains";
-import { LiquidSDK, ADDRESSES } from "./src";
-import { LiquidLpLockerFeeConversionAbi } from "./src/abis/LiquidLpLockerFeeConversion";
+import { LiquidSDK, ADDRESSES, LiquidLpLockerAbi } from "./src";
 
 const DEPLOYER_KEY = process.env.DEPLOYER_KEY;
 if (!DEPLOYER_KEY) { console.error("ERROR: No DEPLOYER_KEY."); process.exit(1); }
@@ -60,7 +59,7 @@ async function main() {
 
   const txHash = await walletClient.writeContract({
     address: ADDRESSES.LP_LOCKER_FEE_CONVERSION,
-    abi: LiquidLpLockerFeeConversionAbi,
+    abi: LiquidLpLockerAbi,
     functionName: "updateRewardAdmin",
     args: [TOKEN, REWARD_INDEX, NEW_ADMIN],
     chain: base,
