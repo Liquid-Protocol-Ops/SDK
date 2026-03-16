@@ -507,11 +507,11 @@ When calling `deployToken`, all fields except `name` and `symbol` are optional. 
 | `image` | `""` | Empty string |
 | `metadata` | `""` | Empty string |
 | `context` | `'{"interface":"SDK"}'` | Auto-set via `buildContext()` |
-| `hook` | `ADDRESSES.HOOK_STATIC_FEE_V2` | Static 1% buy fee |
+| `hook` | `ADDRESSES.HOOK_STATIC_FEE_V2` | Static 1% buy + 1% sell |
 | `pairedToken` | `EXTERNAL.WETH` | Base WETH |
 | `tickIfToken0IsLiquid` | `-230400` | ≈10 ETH market cap |
 | `tickSpacing` | `200` | Uniswap V4 tick spacing |
-| `poolData` | `encodeStaticFeePoolData(0, 100)` | 0% sell, 1% buy |
+| `poolData` | `encodeStaticFeePoolData(100, 100)` | 1% sell, 1% buy |
 | `locker` | `ADDRESSES.LP_LOCKER_FEE_CONVERSION` | LP locker with fee conversion to ETH |
 | `rewardAdmins` | `[walletAddress]` | Deployer is admin |
 | `rewardRecipients` | `[walletAddress]` | Deployer gets rewards |

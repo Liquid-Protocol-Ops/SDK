@@ -41,7 +41,7 @@ const result = await sdk.deployToken({
 // result.event.poolId  → 0x... (the Uniswap V4 pool ID)
 ```
 
-This creates a token with 100 billion supply, a Uniswap V4 pool, locked liquidity, 1% buy fee, and sniper auction MEV protection — all with sensible defaults.
+This creates a token with 100 billion supply, a Uniswap V4 pool, locked liquidity, 1% fee on both buys and sells, and sniper auction MEV protection — all with sensible defaults.
 
 ### Deploy with Dev Buy (buy tokens at launch)
 
@@ -65,7 +65,7 @@ The dev buy happens atomically in the same transaction as deployment. The ETH is
 ```typescript
 import { encodeStaticFeePoolData, encodeDynamicFeePoolData, ADDRESSES } from "liquid-sdk";
 
-// Static fees: 0% sell fee, 2% buy fee
+// Static fees: 0% sell fee, 2% buy fee (override defaults)
 const result = await sdk.deployToken({
   name: "High Fee Token",
   symbol: "HFT",
@@ -162,7 +162,7 @@ const result = await sdk.deployToken({
 | `pairedToken` | `Address` | WETH | Quote token |
 | `tickIfToken0IsLiquid` | `number` | `-230400` | Starting tick (~10 ETH market cap) |
 | `tickSpacing` | `number` | `200` | Uniswap V4 tick spacing |
-| `poolData` | `Hex` | 0% sell / 1% buy | Encoded fee configuration |
+| `poolData` | `Hex` | 1% sell / 1% buy | Encoded fee configuration |
 | `locker` | `Address` | LP Locker Fee Conversion | LP locker contract |
 | `rewardAdmins` | `Address[]` | `[wallet]` | Reward admin per recipient |
 | `rewardRecipients` | `Address[]` | `[wallet]` | Fee recipients |
@@ -250,7 +250,7 @@ const unlockTime = await sdk.getPoolUnlockTime(result.event.poolId);
 import { ADDRESSES, EXTERNAL } from "liquid-sdk";
 
 ADDRESSES.FACTORY                    // Token factory
-ADDRESSES.HOOK_STATIC_FEE_V2        // Default hook (1% buy fee)
+ADDRESSES.HOOK_STATIC_FEE_V2        // Default hook (1% buy + 1% sell)
 ADDRESSES.HOOK_DYNAMIC_FEE_V2       // Dynamic fee hook
 ADDRESSES.LP_LOCKER_FEE_CONVERSION  // Default locker (converts fees to ETH)
 ADDRESSES.SNIPER_AUCTION_V2         // Default MEV module

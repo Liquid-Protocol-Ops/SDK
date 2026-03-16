@@ -225,7 +225,7 @@ const unlockTime = await sdk.getPoolUnlockTime(poolId);
 
 | Field | Default |
 |-------|---------|
-| `hook` | Static Fee V2 (1% buy fee, 0% sell fee) |
+| `hook` | Static Fee V2 (1% buy + 1% sell) |
 | `tickSpacing` | 200 |
 | `tickIfToken0IsLiquid` | -230400 (~10 ETH market cap) |
 | `positions` | 3-tranche: 40% → $500K, 50% → $10M, 10% → $1B |

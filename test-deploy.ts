@@ -80,7 +80,7 @@ async function main() {
   console.log("--- Default Config ---");
   console.log("Starting MC: ~10 ETH (~$20K at $2000/ETH)");
   console.log("Positions:", POOL_POSITIONS.Liquid.length, "(Liquid 5-position layout)");
-  console.log("Fee: Static 1% buy, 0% sell (fees in ETH)");
+  console.log("Fee: Static 1% buy, 1% sell");
   console.log("MEV: Sniper Auction 80% → 40% over 32s");
   console.log("Rewards: 100% to deployer");
   console.log("Dev buy:", DEV_BUY_ETH, "ETH (proves pool is swappable)");

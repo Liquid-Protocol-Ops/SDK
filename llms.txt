@@ -117,7 +117,7 @@ Every token gets 100 billion supply (18 decimals), a Uniswap V4 pool, and locked
 
 | Field | Default |
 |-------|---------|
-| hook | Static fee V2 (1% buy fee) |
+| hook | Static fee V2 (1% buy + 1% sell) |
 | tickSpacing | 200 |
 | tickIfToken0IsLiquid | -230400 (~10 ETH market cap) |
 | positions | 5-position Liquid layout: 10%/50%/15%/20%/5% |

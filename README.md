@@ -8,7 +8,17 @@ TypeScript SDK for the Liquid Protocol token launcher on Base. Deploy tokens, ma
 npm install liquid-sdk viem
 ```
 
-> **Defaults**: Static 1% buy fee / 0% sell fee, 5-position Liquid layout (10%/50%/15%/20%/5%), Sniper Auction MEV (80%→40% over 32s, 5 rounds), tick spacing 200, starting tick -230400 (~10 ETH market cap).
+> **Defaults**: Static 1% fee (both buy and sell), 5-position Liquid layout, Sniper Auction MEV (80%→40% over 32s, 5 rounds), tick spacing 200, starting tick -230400 (~10 ETH market cap).
+
+### Default Liquidity Positions
+
+| # | Supply | Tick Range | Market Cap Range (@$2,000/ETH) |
+|---|--------|-----------|-------------------------------|
+| 1 | 10% | -230,400 → -216,000 | ~$20K → ~$83K |
+| 2 | 50% | -216,000 → -155,000 | ~$83K → ~$37M |
+| 3 | 15% | -202,000 → -155,000 | ~$338K → ~$37M |
+| 4 | 20% | -155,000 → -120,000 | ~$37M → ~$1.2B |
+| 5 | 5% | -141,000 → -120,000 | ~$151M → ~$1.2B |
 
 ## Quick Start
 

@@ -131,7 +131,7 @@ export const POOL_POSITIONS = {
 /**
  * Liquid protocol defaults.
  *
- * - Hook: Static fee V2, 1% on buys only (fees in ETH), 0% on sells
+ * - Hook: Static fee V2, 1% on both buys and sells
  * - MEV: Sniper Auction V2 — 80% → 40% decaying over 32 seconds
  * - Tick spacing: 200
  * - Starting tick: -230400 (≈10 ETH market cap)
@@ -143,10 +143,10 @@ export const DEFAULTS = {
   LOCKER: ADDRESSES.LP_LOCKER_FEE_CONVERSION,
   TICK_SPACING: 200,
   TICK_IF_TOKEN0_IS_LIQUID: -230400,
-  /** Static fee on buys (ETH → token): 1% (100 bps). Fees collected in ETH. */
+  /** Static fee on buys (ETH → token): 1% (100 bps) */
   PAIRED_FEE_BPS: 100,
-  /** Static fee on sells (token → ETH): 0%. No fees in liquid token. */
-  LIQUID_FEE_BPS: 0,
+  /** Static fee on sells (token → ETH): 1% (100 bps) */
+  LIQUID_FEE_BPS: 100,
   /** MEV module: Sniper Auction V2 */
   MEV_MODULE: ADDRESSES.SNIPER_AUCTION_V2,
   /** Sniper auction starting fee: 80% (800,000 uniBps) */
