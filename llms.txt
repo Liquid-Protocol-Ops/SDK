@@ -121,7 +121,7 @@ Every token gets 100 billion supply (18 decimals), a Uniswap V4 pool, and locked
 | tickSpacing | 200 |
 | tickIfToken0IsLiquid | -230400 (~10 ETH market cap) |
 | positions | 5-position Liquid layout: 10%/50%/15%/20%/5% |
-| mevModule | Sniper Auction V2 (80%→40% over 15s) |
+| mevModule | Sniper Auction V2 (80%→40% over 20s) |
 | rewardRecipients | [deployer] at 100% |
 | context | {"interface":"SDK"} |
 

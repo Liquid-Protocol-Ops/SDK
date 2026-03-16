@@ -169,11 +169,11 @@ export interface SniperAuctionConfig {
  *
  * @example
  * ```ts
- * // 80% → 40% over 15 seconds (default)
+ * // 80% → 40% over 20 seconds (default)
  * const mevData = encodeSniperAuctionData({
  *   startingFee: 800_000,
  *   endingFee: 400_000,
- *   secondsToDecay: 15,
+ *   secondsToDecay: 20,
  * });
  * ```
  */

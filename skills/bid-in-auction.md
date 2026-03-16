@@ -6,7 +6,7 @@ You are an AI agent that participates in Liquid Protocol's sniper auction system
 
 When a new token is deployed on Liquid Protocol, a **sniper auction** activates to price early trading activity and capture MEV. Here's the mechanism:
 
-1. **Fee decay**: The auction starts with an **80% fee** on swaps and decays linearly to **40% over 15 seconds**
+1. **Fee decay**: The auction starts with an **80% fee** on swaps and decays linearly to **40% over 20 seconds**
 2. **Gas price bidding**: Bidders compete by setting their transaction gas price **above the pool's gas peg**. The difference between your gas price and the gas peg determines your bid amount
 3. **Rounds**: The auction runs in discrete rounds every 2 blocks (5 rounds max). Each round is valid for exactly **one block** (`nextAuctionBlock`)
 4. **Winner takes the swap**: The highest gas-price transaction in the auction block wins the right to swap at the current fee rate
@@ -286,7 +286,7 @@ interface BidInAuctionResult {
 | Payment per gas unit | 0.0001 ETH (1e14 wei) | Converts gas delta to bid ETH |
 | Starting fee | 800,000 (80%) | Fee at auction start |
 | Ending fee | 400,000 (40%) | Fee floor after decay |
-| Decay period | 15 seconds | Time for fee to decay from start to end |
+| Decay period | 20 seconds | Time for fee to decay from start to end |
 | Gas peg | ~6.3M wei (dynamic) | Set at pool creation, equals Base baseFee |
 
 ## Timing Strategy
@@ -294,7 +294,7 @@ interface BidInAuctionResult {
 The auction fee **decays over time**, so there's a tradeoff:
 
 - **Bid early** (high fee): You pay up to 80% of the swap as a fee, but you get the tokens before others. Useful if you expect rapid price appreciation.
-- **Bid late** (lower fee): The fee decays to 40% over 15 seconds. You pay less in fees but risk being outbid or missing the auction window.
+- **Bid late** (lower fee): The fee decays to 40% over 20 seconds. You pay less in fees but risk being outbid or missing the auction window.
 - **Wait for auction to end**: After all 5 rounds complete, trading is at normal pool fees (typically 1%). No auction mechanics apply.
 
 ```typescript
