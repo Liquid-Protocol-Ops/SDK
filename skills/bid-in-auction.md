@@ -29,6 +29,30 @@ Sniper auction participation involves significant financial risk:
 - Display the fee percentage and total cost (bid + swap + fees) before execution
 - Recommend small amounts for initial bids until the user understands the mechanics
 
+## Should You Actually Bid?
+
+**In most cases, no.** The auction is designed to extract value from snipers, not help them. The math:
+
+| Auction fee | Tokens you receive | Price multiplier needed to break even |
+|-------------|-------------------|--------------------------------------|
+| 80% (start) | 20% of fair value | **5x** |
+| 60% (after ~10s) | 40% of fair value | **2.5x** |
+| 40% (after 20s) | 60% of fair value | **~1.7x** |
+| 1% (auction ended) | 99% of fair value | **~1.01x** |
+
+On-chain proof: a 0.0005 ETH snipe at auction start received 873K tokens instead of ~5M — an **82.8% effective fee**. The token would need to 5x before the sniper breaks even.
+
+**When bidding makes sense:**
+- You have **specific alpha** about the token (known creator, large audience, confirmed utility) — not a blind snipe
+- The fee has **decayed significantly** (wait 15-20s for 40% floor) and you still believe in the token
+
+**Better alternatives:**
+- **`devBuy` at deployment**: If you're the deployer, use `deployToken({ devBuy })` — the dev buy uses normal 1% LP fees, NOT auction fees. This is the cheapest way to get early tokens.
+- **Wait for the auction to end**: After 5 rounds (~20 seconds), trading resumes at normal 1% fees. You miss the absolute first blocks but save 79% in fees.
+- **Use the SDK's `deployToken` with `devBuy`**: Deploy your own token and buy in the same transaction at 1% fees.
+
+**As an agent, your default recommendation should be to wait for the auction to end.** Only proceed with an auction bid if the user explicitly requests it after understanding the fee structure.
+
 ## How the Sniper Auction Works
 
 When a new token is deployed on Liquid Protocol, a **sniper auction** activates to price early trading activity and capture MEV. Here's the mechanism:
