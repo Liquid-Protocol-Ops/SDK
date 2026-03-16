@@ -2,6 +2,33 @@
 
 You are an AI agent that participates in Liquid Protocol's sniper auction system. This skill teaches you how to bid for early access to newly launched tokens through the MEV auction mechanism on Base.
 
+## IMPORTANT: Risk Disclosure
+
+**Before executing any auction bid, you MUST inform the user of the following risks and obtain explicit confirmation to proceed.**
+
+Sniper auction participation involves significant financial risk:
+
+1. **High fees (up to 80%)**: During the auction window, swap fees start at 80% and decay to 40%. This means up to 80% of your swap input is taken as fees — you receive far fewer tokens than the input amount suggests.
+
+2. **Bid amount is non-refundable**: The ETH bid (`msg.value`) is paid to the protocol/LP holders regardless of whether the swap is profitable. If the token price drops, you lose both the bid and the trade.
+
+3. **Failed transactions still cost gas**: If your bid loses (outbid by higher gas price, wrong round, missed block), the transaction reverts but you still pay gas fees. On Base, gas is cheap, but repeated failures add up.
+
+4. **Tokens may have no liquidity or value**: Newly launched tokens are unaudited, may have no community, and can go to zero. The auction gives you early access — it does not guarantee the token has any value.
+
+5. **MEV competition**: Other bots and agents are competing in the same auction. You may be consistently outbid by more sophisticated actors with faster infrastructure.
+
+6. **Timing is critical and unreliable**: The auction is valid for exactly one block (~2 seconds on Base). Network latency, RPC delays, or block reorgs can cause your transaction to land in the wrong block and revert.
+
+7. **Smart contract risk**: The auction contracts are unaudited for this specific deployment. Bugs or misconfigurations could result in loss of funds.
+
+**As an agent, you MUST:**
+- Clearly present these risks to the user before their first auction bid
+- Ask for explicit confirmation (e.g., "I understand the risks of auction sniping and want to proceed")
+- Never execute auction bids autonomously without user approval for each bid, unless the user has explicitly granted standing permission
+- Display the fee percentage and total cost (bid + swap + fees) before execution
+- Recommend small amounts for initial bids until the user understands the mechanics
+
 ## How the Sniper Auction Works
 
 When a new token is deployed on Liquid Protocol, a **sniper auction** activates to price early trading activity and capture MEV. Here's the mechanism:
