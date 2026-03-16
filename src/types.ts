@@ -232,9 +232,16 @@ export interface LiquidSDKConfig {
 export interface BidInAuctionParams {
   /** The pool key identifying the token's Uniswap V4 pool */
   poolKey: PoolKey;
-  /** True if swapping token0 → token1 (typically ETH → token) */
+  /**
+   * Swap direction. Set `true` when WETH is currency0 (buying token with ETH).
+   * Determine via: `poolKey.currency0.toLowerCase() === WETH.toLowerCase()`
+   */
   zeroForOne: boolean;
-  /** Amount of input token (in wei) */
+  /**
+   * Amount of WETH to swap (in wei). Pulled from caller's WETH balance via
+   * `transferFrom` — separate from the bid. The SDK auto-wraps ETH → WETH
+   * and approves SniperUtilV2 if balance or allowance is insufficient.
+   */
   amountIn: bigint;
   /** Minimum output tokens to receive (slippage protection) */
   amountOutMinimum: bigint;

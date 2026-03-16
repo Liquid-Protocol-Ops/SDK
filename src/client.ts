@@ -734,22 +734,30 @@ export class LiquidSDK {
    * The auction lets bidders compete via gas price — the bid amount is
    * determined by how much your tx.gasprice exceeds the pool's gasPeg.
    *
+   * **Important:** The `amountIn` (swap input) is pulled from the caller's
+   * WETH balance via `transferFrom`. The SDK automatically wraps ETH → WETH
+   * and approves the SniperUtilV2 if needed. The `bidAmount` is sent as
+   * `msg.value` (separate from the swap).
+   *
+   * Gas price must exceed the pool's `gasPeg` — the delta encodes the bid.
+   * Both `maxFeePerGas` and `maxPriorityFeePerGas` are set to ensure the
+   * effective gas price matches on Base (EIP-1559). Gas estimation is skipped
+   * because `eth_estimateGas` simulates at `baseFee` which is below `gasPeg`.
+   *
    * @example
    * ```typescript
-   * // 1. Get auction state
+   * // 1. Get auction state & pool key
    * const state = await sdk.getAuctionState(poolId);
+   * const rewards = await sdk.getTokenRewards(tokenAddress);
    *
    * // 2. Calculate gas price for desired bid
    * const gasPrice = await sdk.getAuctionGasPriceForBid(state.gasPeg, bidAmount);
    *
-   * // 3. Get pool key from token rewards
-   * const rewards = await sdk.getTokenRewards(tokenAddress);
-   *
-   * // 4. Bid
+   * // 3. Bid (SDK auto-wraps WETH + approves if needed)
    * const result = await sdk.bidInAuction({
    *   poolKey: rewards.poolKey,
    *   zeroForOne: true,            // ETH → token
-   *   amountIn: parseEther("0.1"), // swap 0.1 ETH
+   *   amountIn: parseEther("0.1"), // swap 0.1 ETH (pulled from WETH balance)
    *   amountOutMinimum: 0n,        // set slippage
    *   round: state.round,
    *   bidAmount: parseEther("0.01"),
@@ -764,7 +772,52 @@ export class LiquidSDK {
       throw new Error("walletClient with account required for bidInAuction");
     }
 
-    // Encode hookData as PoolSwapData { mevModuleSwapData: sniperUtilAddress, poolExtensionSwapData: "" }
+    const account = this.walletClient.account;
+    const weth = EXTERNAL.WETH;
+
+    // ── Auto-wrap ETH → WETH if needed ────────────────────────────────
+    const wethBalance = (await this.publicClient.readContract({
+      address: weth,
+      abi: ERC20Abi,
+      functionName: "balanceOf",
+      args: [account.address],
+    })) as bigint;
+
+    if (wethBalance < params.amountIn) {
+      const wrapAmount = params.amountIn - wethBalance;
+      const wrapTx = await this.walletClient.writeContract({
+        address: weth,
+        abi: [{ type: "function", name: "deposit", inputs: [], outputs: [], stateMutability: "payable" }] as const,
+        functionName: "deposit",
+        args: [],
+        value: wrapAmount,
+        chain: base,
+        account,
+      });
+      await this.publicClient.waitForTransactionReceipt({ hash: wrapTx });
+    }
+
+    // ── Auto-approve SniperUtilV2 for WETH if needed ──────────────────
+    const allowance = (await this.publicClient.readContract({
+      address: weth,
+      abi: ERC20Abi,
+      functionName: "allowance",
+      args: [account.address, ADDRESSES.SNIPER_UTIL_V2],
+    })) as bigint;
+
+    if (allowance < params.amountIn) {
+      const approveTx = await this.walletClient.writeContract({
+        address: weth,
+        abi: ERC20Abi,
+        functionName: "approve",
+        args: [ADDRESSES.SNIPER_UTIL_V2, params.amountIn * 10n],
+        chain: base,
+        account,
+      });
+      await this.publicClient.waitForTransactionReceipt({ hash: approveTx });
+    }
+
+    // ── Encode hookData ────────────────────────────────────────────────
     const hookData = encodeAbiParameters(
       [
         {
@@ -786,6 +839,11 @@ export class LiquidSDK {
       ]
     );
 
+    // ── Execute bid ───────────────────────────────────────────────────
+    // Both maxFeePerGas and maxPriorityFeePerGas must be set so that
+    // effective gas price = maxFeePerGas on Base (EIP-1559 L2).
+    // Gas is set manually because eth_estimateGas simulates at baseFee
+    // which is below gasPeg, causing the auction check to fail.
     const txHash = await this.walletClient.writeContract({
       address: ADDRESSES.SNIPER_UTIL_V2,
       abi: LiquidSniperUtilV2Abi,
@@ -802,8 +860,10 @@ export class LiquidSDK {
       ],
       value: params.bidAmount,
       chain: base,
-      account: this.walletClient.account,
+      account,
+      gas: 500_000n,
       maxFeePerGas,
+      maxPriorityFeePerGas: maxFeePerGas,
     });
 
     return { txHash };

@@ -8,8 +8,8 @@ When a new token is deployed on Liquid Protocol, a **sniper auction** activates 
 
 1. **Fee decay**: The auction starts with an **80% fee** on swaps and decays linearly to **40% over 32 seconds**
 2. **Gas price bidding**: Bidders compete by setting their transaction gas price **above the pool's gas peg**. The difference between your gas price and the gas peg determines your bid amount
-3. **Rounds**: The auction runs in discrete rounds, each lasting a configurable number of blocks. Each round has its own auction window
-4. **Winner takes the swap**: The highest gas-price transaction in each block wins the right to swap at the current fee rate
+3. **Rounds**: The auction runs in discrete rounds every 2 blocks (5 rounds max). Each round is valid for exactly **one block** (`nextAuctionBlock`)
+4. **Winner takes the swap**: The highest gas-price transaction in the auction block wins the right to swap at the current fee rate
 5. **Revenue distribution**: Auction revenue (bid amounts) flows to the protocol and LP holders
 
 The auction is **not** a separate step from trading — it's a modified swap where your gas price encodes your bid.
@@ -21,7 +21,7 @@ npm install liquid-sdk viem
 ```
 
 You need:
-- A **private key** with ETH on Base
+- A **private key** with ETH on Base (enough for gas + bid + swap amount)
 - The **token address** or **pool ID** of a recently launched token
 - An **RPC endpoint** for Base mainnet
 
@@ -31,12 +31,37 @@ You need:
 import { createPublicClient, createWalletClient, http, parseEther } from "viem";
 import { base } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
-import { LiquidSDK } from "liquid-sdk";
+import { LiquidSDK, EXTERNAL } from "liquid-sdk";
 
 const account = privateKeyToAccount(PRIVATE_KEY);
 const publicClient = createPublicClient({ chain: base, transport: http(RPC_URL) });
 const walletClient = createWalletClient({ account, chain: base, transport: http(RPC_URL) });
 const sdk = new LiquidSDK({ publicClient, walletClient });
+```
+
+## Critical Concepts
+
+Before bidding, understand these mechanics:
+
+### Two Separate ETH Costs
+- **`bidAmount`** (msg.value): ETH sent to the auction as your bid. Goes to protocol/LP.
+- **`amountIn`** (WETH transfer): The actual swap input. Pulled from your WETH balance via `transferFrom`. **This is separate from the bid.**
+
+The SDK **automatically wraps ETH → WETH and approves the SniperUtilV2** if your WETH balance or allowance is insufficient. You just need enough total ETH.
+
+### Gas Price = Bid Encoding
+The bid amount is encoded in the transaction's gas price: `bidAmount = (tx.gasprice - gasPeg) × paymentPerGasUnit`. Both `maxFeePerGas` **and** `maxPriorityFeePerGas` must be set to the calculated value, otherwise Base's EIP-1559 will compute a lower effective gas price.
+
+### Gas Estimation Must Be Skipped
+`eth_estimateGas` simulates at `baseFee` (~5M wei on Base), which is below the `gasPeg` (~6.3M wei). This causes the auction check to fail during estimation. The SDK sets `gas: 500_000n` manually.
+
+### Block Timing is Critical
+The auction is valid at **exactly** `nextAuctionBlock` — not before, not after. Submit your transaction ~1 block early (when `currentBlock === nextAuctionBlock - 1`) to land in the target block. Base has ~2s block time.
+
+### zeroForOne Depends on Token Sort Order
+Do **not** hardcode `zeroForOne: true`. Determine it from the pool key:
+```typescript
+const zeroForOne = poolKey.currency0.toLowerCase() === EXTERNAL.WETH.toLowerCase();
 ```
 
 ## Step-by-Step: Bidding in an Auction
@@ -60,47 +85,27 @@ console.log("Current fee:", auction.currentFee); // in uniBps (800000 = 80%)
 **Key fields:**
 | Field | Type | Description |
 |-------|------|-------------|
-| `nextAuctionBlock` | `bigint` | Block number when next auction round starts |
+| `nextAuctionBlock` | `bigint` | The ONE block where bids are valid |
 | `round` | `bigint` | Current round number (must match when bidding) |
 | `gasPeg` | `bigint` | Base gas price reference — you bid by exceeding this |
 | `currentFee` | `number` | Current MEV fee in uniBps (decays from 800000→400000) |
 
-### Step 2: Check Auction Fee Config
+### Step 2: Get Pool Key and Determine Swap Direction
 
 ```typescript
-const feeConfig = await sdk.getAuctionFeeConfig(poolId);
+const rewards = await sdk.getTokenRewards(tokenAddress);
+const poolKey = rewards.poolKey;
 
-console.log("Starting fee:", feeConfig.startingFee);     // 800000 (80%)
-console.log("Ending fee:", feeConfig.endingFee);          // 400000 (40%)
-console.log("Seconds to decay:", feeConfig.secondsToDecay); // 32n
+// Determine swap direction from token sort order
+const zeroForOne = poolKey.currency0.toLowerCase() === EXTERNAL.WETH.toLowerCase();
+// true  = WETH is currency0, buying token (most common)
+// false = token is currency0, buying with WETH from currency1 side
 ```
 
-### Step 3: Check Timing
+### Step 3: Calculate Gas Price for Your Bid
 
 ```typescript
-// When did fee decay start?
-const decayStart = await sdk.getAuctionDecayStartTime(poolId);
-const now = BigInt(Math.floor(Date.now() / 1000));
-const elapsed = now - decayStart;
-
-console.log("Seconds since decay started:", elapsed);
-// If elapsed > secondsToDecay, fee is at the floor (endingFee)
-
-// How many rounds total?
-const maxRounds = await sdk.getAuctionMaxRounds();
-console.log("Max auction rounds:", maxRounds);
-
-// Is this round still active?
-const currentBlock = await publicClient.getBlockNumber();
-console.log("Current block:", currentBlock);
-console.log("Next auction block:", auction.nextAuctionBlock);
-// If currentBlock < nextAuctionBlock, the current round is still active
-```
-
-### Step 4: Calculate Gas Price for Your Bid
-
-```typescript
-const desiredBidAmount = parseEther("0.01"); // How much ETH you want to bid
+const desiredBidAmount = parseEther("0.001"); // How much ETH you want to bid
 
 // SDK calculates the exact gas price needed
 const requiredGasPrice = await sdk.getAuctionGasPriceForBid(
@@ -109,44 +114,50 @@ const requiredGasPrice = await sdk.getAuctionGasPriceForBid(
 );
 
 console.log("Required gas price:", requiredGasPrice);
-// This is the maxFeePerGas you must set on your transaction
 ```
 
-**The formula:** `bidAmount = (txGasPrice - gasPeg) * paymentPerGasUnit`. The utility contract solves for `txGasPrice` given your desired `bidAmount`.
+**The formula:** `bidAmount = (txGasPrice - gasPeg) * paymentPerGasUnit` where `paymentPerGasUnit = 0.0001 ETH (1e14 wei)`. The utility contract solves for `txGasPrice` given your desired `bidAmount`.
 
-### Step 5: Get the Pool Key
+### Step 4: Wait for the Auction Block
 
 ```typescript
-// The pool key identifies the Uniswap V4 pool for the swap
-const rewards = await sdk.getTokenRewards(tokenAddress);
-const poolKey = rewards.poolKey;
+// Poll until we're one block before the auction
+while (true) {
+  const currentBlock = await publicClient.getBlockNumber();
+  const gap = Number(auction.nextAuctionBlock - currentBlock);
 
-// poolKey contains:
-// .currency0  — lower-sorted token (WETH or the Liquid token)
-// .currency1  — higher-sorted token
-// .fee        — fee tier
-// .tickSpacing — tick spacing (200)
-// .hooks      — hook contract address
+  if (gap <= 0) {
+    console.log("Missed this round");
+    break;
+  }
+  if (gap === 1) {
+    console.log("Next block is auction — fire!");
+    break;
+  }
+
+  // Wait ~2s (Base block time)
+  await new Promise(r => setTimeout(r, gap > 2 ? 500 : 200));
+}
 ```
 
-### Step 6: Execute the Bid
+### Step 5: Execute the Bid
 
 ```typescript
+// The SDK handles WETH wrapping + approval automatically
 const result = await sdk.bidInAuction(
   {
     poolKey: rewards.poolKey,
-    zeroForOne: true,               // true = buying tokens with ETH
-    amountIn: parseEther("0.1"),    // amount of ETH to swap
-    amountOutMinimum: 0n,           // set slippage protection (0 = no minimum)
-    round: auction.round,           // must match current on-chain round
-    bidAmount: desiredBidAmount,    // ETH bid (sent as msg.value)
+    zeroForOne,                      // determined in step 2
+    amountIn: parseEther("0.001"),   // WETH to swap (auto-wrapped from ETH)
+    amountOutMinimum: 0n,            // set slippage protection in production!
+    round: auction.round,            // must match current on-chain round
+    bidAmount: desiredBidAmount,     // ETH bid (sent as msg.value)
   },
-  requiredGasPrice,                 // calculated gas price from step 4
+  requiredGasPrice,                  // from step 3
 );
 
 console.log("Bid tx:", result.txHash);
 
-// Wait for confirmation
 const receipt = await publicClient.waitForTransactionReceipt({ hash: result.txHash });
 console.log("Status:", receipt.status); // "success" or "reverted"
 ```
@@ -157,7 +168,7 @@ console.log("Status:", receipt.status); // "success" or "reverted"
 import { createPublicClient, createWalletClient, http, parseEther, formatEther } from "viem";
 import { base } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
-import { LiquidSDK } from "liquid-sdk";
+import { LiquidSDK, EXTERNAL, ERC20Abi } from "liquid-sdk";
 
 async function snipeToken(tokenAddress: `0x${string}`, bidETH: string, swapETH: string) {
   const account = privateKeyToAccount(PRIVATE_KEY);
@@ -183,21 +194,31 @@ async function snipeToken(tokenAddress: `0x${string}`, bidETH: string, swapETH: 
     return;
   }
 
-  // 4. Get pool key for the swap
+  // 4. Get pool key and determine swap direction
   const rewards = await sdk.getTokenRewards(tokenAddress);
+  const zeroForOne = rewards.poolKey.currency0.toLowerCase() === EXTERNAL.WETH.toLowerCase();
 
   // 5. Calculate gas price for desired bid
   const bidAmount = parseEther(bidETH);
   const gasPrice = await sdk.getAuctionGasPriceForBid(auction.gasPeg, bidAmount);
 
-  console.log(`Bid amount: ${formatEther(bidAmount)} ETH`);
-  console.log(`Required gas price: ${gasPrice}`);
+  console.log(`Bid: ${formatEther(bidAmount)} ETH | Swap: ${swapETH} ETH`);
+  console.log(`Gas price: ${gasPrice} (peg: ${auction.gasPeg})`);
 
-  // 6. Execute the bid
+  // 6. Wait for the auction block
+  while (true) {
+    const currentBlock = await publicClient.getBlockNumber();
+    const gap = Number(auction.nextAuctionBlock - currentBlock);
+    if (gap <= 0) { console.log("Missed this round"); return; }
+    if (gap === 1) break; // next block is auction — fire!
+    await new Promise(r => setTimeout(r, gap > 2 ? 500 : 200));
+  }
+
+  // 7. Execute the bid (SDK auto-wraps WETH + approves SniperUtil)
   const result = await sdk.bidInAuction(
     {
       poolKey: rewards.poolKey,
-      zeroForOne: true,
+      zeroForOne,
       amountIn: parseEther(swapETH),
       amountOutMinimum: 0n,       // In production, calculate proper slippage!
       round: auction.round,
@@ -208,19 +229,43 @@ async function snipeToken(tokenAddress: `0x${string}`, bidETH: string, swapETH: 
 
   const receipt = await publicClient.waitForTransactionReceipt({ hash: result.txHash });
   console.log(`Bid ${receipt.status === "success" ? "WON" : "FAILED"}: ${result.txHash}`);
+
+  if (receipt.status === "success") {
+    const tokenBal = await publicClient.readContract({
+      address: tokenAddress,
+      abi: ERC20Abi,
+      functionName: "balanceOf",
+      args: [account.address],
+    });
+    console.log(`Tokens received: ${formatEther(tokenBal as bigint)}`);
+  }
 }
 
-// Usage
-await snipeToken("0x...", "0.005", "0.1"); // bid 0.005 ETH, swap 0.1 ETH
+// Usage: bid 0.001 ETH, swap 0.001 ETH for tokens
+await snipeToken("0x...", "0.001", "0.001");
 ```
+
+## The Working Bid Flow (Summary)
+
+1. Get auction state (`getAuctionState`) — need `gasPeg`, `round`, `nextAuctionBlock`
+2. Get pool key (`getTokenRewards`) — need `poolKey` for the swap
+3. Determine `zeroForOne` from pool key token sort order
+4. Calculate gas price (`getAuctionGasPriceForBid`)
+5. Wait until `currentBlock === nextAuctionBlock - 1`
+6. Call `sdk.bidInAuction(params, gasPrice)` — SDK handles:
+   - Auto-wrapping ETH → WETH for `amountIn`
+   - Auto-approving SniperUtilV2 for WETH
+   - Setting `gas: 500_000n` (skipping estimation)
+   - Setting `maxFeePerGas` and `maxPriorityFeePerGas` to the calculated value
+7. Transaction lands in `nextAuctionBlock` → snipe complete
 
 ## BidInAuctionParams Reference
 
 ```typescript
 interface BidInAuctionParams {
-  poolKey: PoolKey;        // The Uniswap V4 pool key (get from getTokenRewards)
-  zeroForOne: boolean;     // true = ETH→token, false = token→ETH
-  amountIn: bigint;        // Amount of input token to swap (in wei)
+  poolKey: PoolKey;        // Uniswap V4 pool key (get from getTokenRewards)
+  zeroForOne: boolean;     // true if WETH is currency0 (buying token)
+  amountIn: bigint;        // WETH to swap — pulled via transferFrom (auto-wrapped by SDK)
   amountOutMinimum: bigint;// Minimum output (slippage protection)
   round: bigint;           // Must match current on-chain auction round
   bidAmount: bigint;       // ETH bid amount (sent as msg.value)
@@ -231,15 +276,18 @@ interface BidInAuctionResult {
 }
 ```
 
-## Auction Parameters (Defaults)
+## Auction Constants (Current Deployment)
 
 | Parameter | Value | Description |
 |-----------|-------|-------------|
+| Max rounds | 5 | Total auction rounds per token |
+| Blocks between auctions | 2 | Rounds occur every 2 blocks |
+| Blocks before first auction | 2 | First auction = deploy block + 2 |
+| Payment per gas unit | 0.0001 ETH (1e14 wei) | Converts gas delta to bid ETH |
 | Starting fee | 800,000 (80%) | Fee at auction start |
-| Ending fee | 400,000 (40%) | Fee after decay completes |
+| Ending fee | 400,000 (40%) | Fee floor after decay |
 | Decay period | 32 seconds | Time for fee to decay from start to end |
-| Gas peg | Dynamic | Base gas price, updated per round |
-| Max rounds | Contract-defined | Total auction rounds per token |
+| Gas peg | ~6.3M wei (dynamic) | Set at pool creation, equals Base baseFee |
 
 ## Timing Strategy
 
@@ -247,32 +295,23 @@ The auction fee **decays over time**, so there's a tradeoff:
 
 - **Bid early** (high fee): You pay up to 80% of the swap as a fee, but you get the tokens before others. Useful if you expect rapid price appreciation.
 - **Bid late** (lower fee): The fee decays to 40% over 32 seconds. You pay less in fees but risk being outbid or missing the auction window.
-- **Wait for auction to end**: After all rounds complete, trading is at normal pool fees (typically 1%). No auction mechanics apply.
+- **Wait for auction to end**: After all 5 rounds complete, trading is at normal pool fees (typically 1%). No auction mechanics apply.
 
 ```typescript
 // Check current fee percentage
 const feePercent = auction.currentFee / 10000; // e.g., 80.0, 60.5, 40.0
 console.log(`Current fee: ${feePercent}%`);
-
-// Check fee decay progress
-const feeConfig = await sdk.getAuctionFeeConfig(poolId);
-const decayStart = await sdk.getAuctionDecayStartTime(poolId);
-const now = BigInt(Math.floor(Date.now() / 1000));
-const decayProgress = Number(now - decayStart) / Number(feeConfig.secondsToDecay);
-console.log(`Decay progress: ${Math.min(decayProgress * 100, 100).toFixed(1)}%`);
 ```
 
-## Important Notes
+## Common Errors
 
-1. **`round` must be current**: If you submit a bid with a stale round number, the transaction will revert. Always fetch `getAuctionState()` right before bidding.
-
-2. **Gas price is the bid**: The auction uses `tx.gasprice` as the bidding mechanism. The SDK's `bidInAuction()` sets `maxFeePerGas` to the calculated value. On Base (L2), gas prices are low, so even small bids produce manageable gas costs.
-
-3. **Slippage protection**: Set `amountOutMinimum` to a non-zero value in production. Calculate it based on the current pool price and your acceptable slippage tolerance.
-
-4. **The bid amount is sent as `msg.value`**: This ETH goes to the auction contract, not to the swap. The `amountIn` is the separate ETH amount for the actual token swap.
-
-5. **`zeroForOne` direction**: Almost always `true` for sniping (buying tokens with ETH). Only set to `false` if selling tokens back through the auction.
+| Error | Selector | Cause | Fix |
+|-------|----------|-------|-----|
+| `GasPriceTooLow()` | `0x8c19df83` | `tx.gasprice ≤ gasPeg` | Use `getAuctionGasPriceForBid()` and set both `maxFeePerGas` + `maxPriorityFeePerGas` |
+| `Unauthorized()` | `0x82b42900` | Fee Locker hasn't authorized the Sniper Auction as depositor | Protocol admin must call `FeeLocker.addDepositor(SniperAuctionAddress)` |
+| `NotAuctionBlock()` | — | Tx didn't land in `nextAuctionBlock` | Submit 1 block early, tx must mine in the exact auction block |
+| WETH `transferFrom` revert | — | Insufficient WETH balance or allowance | SDK handles this automatically; ensure enough ETH for wrap |
+| Gas estimation failure | — | `eth_estimateGas` runs at baseFee < gasPeg | SDK sets `gas: 500_000n` manually |
 
 ## Read-Only Auction Queries (No Wallet Needed)
 
@@ -283,7 +322,7 @@ const auction = await sdk.getAuctionState(poolId);
 const feeConfig = await sdk.getAuctionFeeConfig(poolId);
 const decayStart = await sdk.getAuctionDecayStartTime(poolId);
 const maxRounds = await sdk.getAuctionMaxRounds();
-const gasPrice = await sdk.getAuctionGasPriceForBid(auction.gasPeg, parseEther("0.01"));
+const gasPrice = await sdk.getAuctionGasPriceForBid(auction.gasPeg, parseEther("0.001"));
 ```
 
 ## Contract Addresses
@@ -291,6 +330,6 @@ const gasPrice = await sdk.getAuctionGasPriceForBid(auction.gasPeg, parseEther("
 ```typescript
 import { ADDRESSES } from "liquid-sdk";
 
-ADDRESSES.SNIPER_AUCTION_V2  // Auction state contract
-ADDRESSES.SNIPER_UTIL_V2     // Bid execution contract (called by bidInAuction)
+ADDRESSES.SNIPER_AUCTION_V2  // 0x187e8627... — Auction state contract
+ADDRESSES.SNIPER_UTIL_V2     // 0x2B6cd5Be... — Bid execution contract
 ```
