@@ -8,9 +8,10 @@ The SDK ships with **agent skill files** — self-contained markdown guides that
 
 | Skill | File | What it teaches |
 |-------|------|-----------------|
-| **Deploy Token** | `skills/deploy-token.md` | Full deployment workflows — minimal deploy, dev buy, custom fees, custom positions, reward splits, validation rules |
+| **SDK Overview** | `skills/sdk-overview.md` | Full capabilities, data schemas (metadata, context, rewards, vault, airdrop), default config — load this first |
+| **Deploy Token** | `skills/deploy-token.md` | Deployment workflows — minimal deploy, dev buy, custom fees, custom positions, reward splits |
 | **Bid in Auction** | `skills/bid-in-auction.md` | MEV sniper auction — WETH handling, gas price encoding, block timing, automated sniper example |
-| **Index Tokens** | `skills/index-tokens.md` | Token discovery — bulk queries, single lookup, pagination, real-time monitoring, data enrichment |
+| **Index Tokens** | `skills/index-tokens.md` | Token discovery — bulk queries, single lookup, pagination, real-time monitoring |
 
 ### Using Skills with Your Agent
 
