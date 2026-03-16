@@ -2,13 +2,50 @@
 
 TypeScript SDK for the Liquid Protocol token launcher on Base. Deploy tokens, manage pools, and claim fees using [viem](https://viem.sh).
 
+## Agent Skills
+
+The SDK ships with **agent skill files** — self-contained markdown guides that AI agents can load into their context to autonomously interact with Liquid Protocol on Base.
+
+| Skill | File | What it teaches |
+|-------|------|-----------------|
+| **Deploy Token** | `skills/deploy-token.md` | Full deployment workflows — minimal deploy, dev buy, custom fees, custom positions, reward splits, validation rules |
+| **Bid in Auction** | `skills/bid-in-auction.md` | MEV sniper auction — WETH handling, gas price encoding, block timing, automated sniper example |
+| **Index Tokens** | `skills/index-tokens.md` | Token discovery — bulk queries, single lookup, pagination, real-time monitoring, data enrichment |
+
+### Using Skills with Your Agent
+
+```python
+# Python — load a skill into your agent's context
+with open("node_modules/liquid-sdk/skills/deploy-token.md") as f:
+    agent.system_prompt += f.read()
+```
+
+```typescript
+// TypeScript — read skill for an MCP server or agent framework
+import { readFileSync } from "fs";
+const skill = readFileSync("node_modules/liquid-sdk/skills/bid-in-auction.md", "utf-8");
+```
+
+For Claude Code, reference skills in your `CLAUDE.md`:
+```
+For token deployment, follow the instructions in node_modules/liquid-sdk/skills/deploy-token.md
+```
+
+### Additional Agent Docs
+
+| File | Purpose |
+|------|---------|
+| `AGENT_README.md` | Complete API reference with every method, type, and default (700+ lines) |
+| `llms.txt` | Compact summary for LLM context windows |
+| `CLAUDE.md` | Agent guide with architecture, defaults, and invariants |
+
 ## Installation
 
 ```bash
 npm install liquid-sdk viem
 ```
 
-> **Defaults**: Static 1% fee (both buy and sell), 5-position Liquid layout, Sniper Auction MEV (80%→40% over 32s, 5 rounds), tick spacing 200, starting tick -230400 (~10 ETH market cap).
+> **Defaults**: Static 1% fee (both buy and sell), 5-position Liquid layout, Sniper Auction MEV (80%→40% over 32s, 5 rounds), tick spacing 200, starting tick -230400 (~10 ETH market cap). All fees converted to ETH before distribution.
 
 ### Default Liquidity Positions
 
@@ -163,7 +200,7 @@ console.log("Locker:", info.deployment.locker);
 const rewards = await liquid.getTokenRewards(tokenAddress);
 await liquid.collectRewards(tokenAddress);
 
-// Fee claims
+// Fee claims (all fees converted to ETH by default)
 const claimable = await liquid.getFeesToClaim(ownerAddress, tokenAddress);
 await liquid.claimFees(ownerAddress, tokenAddress);
 ```
@@ -175,43 +212,6 @@ const allocation = await liquid.getVaultAllocation(tokenAddress);
 const claimable = await liquid.getVaultClaimable(tokenAddress);
 await liquid.claimVault(tokenAddress);
 ```
-
-## Agent Skills
-
-The SDK ships with **agent skill files** — self-contained markdown guides that AI agents can load into their context to autonomously use the SDK. Find them in `node_modules/liquid-sdk/skills/` after install.
-
-| Skill | File | What it teaches |
-|-------|------|-----------------|
-| **Deploy Token** | `skills/deploy-token.md` | Full deployment workflows — minimal deploy, dev buy, custom fees, custom positions, reward splits, validation rules |
-| **Bid in Auction** | `skills/bid-in-auction.md` | MEV sniper auction — WETH handling, gas price encoding, block timing, automated sniper example |
-| **Index Tokens** | `skills/index-tokens.md` | Token discovery — bulk queries, single lookup, pagination, real-time monitoring, data enrichment |
-
-### Using Skills with Your Agent
-
-```python
-# Python — load a skill into your agent's context
-with open("node_modules/liquid-sdk/skills/deploy-token.md") as f:
-    agent.system_prompt += f.read()
-```
-
-```typescript
-// TypeScript — read skill for an MCP server or agent framework
-import { readFileSync } from "fs";
-const skill = readFileSync("node_modules/liquid-sdk/skills/bid-in-auction.md", "utf-8");
-```
-
-For Claude Code, reference skills in your `CLAUDE.md`:
-```
-For token deployment, follow the instructions in node_modules/liquid-sdk/skills/deploy-token.md
-```
-
-### Additional Agent Docs
-
-| File | Purpose |
-|------|---------|
-| `AGENT_README.md` | Complete API reference with every method, type, and default (700+ lines) |
-| `llms.txt` | Compact summary for LLM context windows |
-| `CLAUDE.md` | Agent guide with architecture, defaults, and invariants |
 
 ## Constants & ABIs
 
