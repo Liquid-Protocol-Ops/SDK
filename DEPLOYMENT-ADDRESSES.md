@@ -6,39 +6,36 @@ All Liquid Protocol contracts are deployed on **Base** (chain ID 8453).
 
 | Contract | Address | Basescan |
 |----------|---------|----------|
-| Factory (Liquid.sol) | `0x0000003482fe299E72d4908368044A8A173BE576` | [View](https://basescan.org/address/0x0000003482fe299E72d4908368044A8A173BE576#code) |
-| Hook Dynamic Fee V2 | `0x2A2F73CDDa098d639bd8Bbcd7dF2bf24E06728cC` | [View](https://basescan.org/address/0x2A2F73CDDa098d639bd8Bbcd7dF2bf24E06728cC#code) |
-| Hook Static Fee V2 | `0xb2401c5369AaCF62F8d615623C7F68F84da428Cc` | [View](https://basescan.org/address/0xb2401c5369AaCF62F8d615623C7F68F84da428Cc#code) |
+| Factory (Liquid.sol) | `0x04F1a284168743759BE6554f607a10CEBdB77760` | [View](https://basescan.org/address/0x04F1a284168743759BE6554f607a10CEBdB77760#code) |
+| Fee Locker | `0xF7d3BE3FC0de76fA5550C29A8F6fa53667B876FF` | [View](https://basescan.org/address/0xF7d3BE3FC0de76fA5550C29A8F6fa53667B876FF#code) |
+| LP Locker Fee Conversion | `0x77247fCD1d5e34A3703AcA898A591Dc7422435f3` | [View](https://basescan.org/address/0x77247fCD1d5e34A3703AcA898A591Dc7422435f3#code) |
+| Pool Extension Allowlist | `0xb614167d79aDBaA9BA35d05fE1d5542d7316Ccaa` | [View](https://basescan.org/address/0xb614167d79aDBaA9BA35d05fE1d5542d7316Ccaa#code) |
 
-## Fee Infrastructure
+## Hooks (Uniswap V4)
 
 | Contract | Address | Basescan |
 |----------|---------|----------|
-| Fee Locker | `0x000008B9242b7e4432f6c4b1EeAD93562f9Cc94d` | [View](https://basescan.org/address/0x000008B9242b7e4432f6c4b1EeAD93562f9Cc94d#code) |
-| LP Locker | `0x00000548732DfA56Be1257cE44D0CFc3B46dDb2A` | [View](https://basescan.org/address/0x00000548732DfA56Be1257cE44D0CFc3B46dDb2A#code) |
-| LP Locker Fee Conversion | `0x00000547518784420CEeF761fb18D884bb908102` | [View](https://basescan.org/address/0x00000547518784420CEeF761fb18D884bb908102#code) |
+| Hook Dynamic Fee V2 | `0x80E2F7dC8C2C880BbC4BDF80A5Fb0eB8B1DB68CC` | [View](https://basescan.org/address/0x80E2F7dC8C2C880BbC4BDF80A5Fb0eB8B1DB68CC#code) |
+| Hook Static Fee V2 | `0x9811f10Cd549c754Fa9E5785989c422A762c28cc` | [View](https://basescan.org/address/0x9811f10Cd549c754Fa9E5785989c422A762c28cc#code) |
 
 ## Extensions
 
 | Contract | Address | Basescan |
 |----------|---------|----------|
-| Vault | `0x000001c5263F4d64CdC343cDA9C8bF961CF8376c` | [View](https://basescan.org/address/0x000001c5263F4d64CdC343cDA9C8bF961CF8376c#code) |
-| Airdrop V2 | `0x00000C222442512b08446D33dd9754a7F260BE79` | [View](https://basescan.org/address/0x00000C222442512b08446D33dd9754a7F260BE79#code) |
-| Pool Extension Allowlist | `0x000003Afb1b070F037D2871eE0A6b8c8f53F7B77` | [View](https://basescan.org/address/0x000003Afb1b070F037D2871eE0A6b8c8f53F7B77#code) |
+| Vault | `0xdFCCC93257c20519A9005A2281CFBdF84836d50E` | [View](https://basescan.org/address/0xdFCCC93257c20519A9005A2281CFBdF84836d50E#code) |
+| Airdrop V2 | `0x1423974d48f525462f1c087cBFdCC20BDBc33CdD` | [View](https://basescan.org/address/0x1423974d48f525462f1c087cBFdCC20BDBc33CdD#code) |
+| Univ4 ETH Dev Buy | `0x5934097864dC487D21A7B4e4EEe201A39ceF728D` | [View](https://basescan.org/address/0x5934097864dC487D21A7B4e4EEe201A39ceF728D#code) |
+| Univ3 ETH Dev Buy | `0x376028cfb6b9A120E24Aa14c3FAc4205179c0025` | [View](https://basescan.org/address/0x376028cfb6b9A120E24Aa14c3FAc4205179c0025#code) |
+| Presale ETH To Creator | `0x3bca63EcB49d5f917092d10fA879Fdb422740163` | [View](https://basescan.org/address/0x3bca63EcB49d5f917092d10fA879Fdb422740163#code) |
+| Presale Allowlist | `0xCBb4ccC4B94E23233c14759f4F9629F7dD01f10B` | [View](https://basescan.org/address/0xCBb4ccC4B94E23233c14759f4F9629F7dD01f10B#code) |
 
 ## MEV Protection
 
 | Contract | Address | Basescan |
 |----------|---------|----------|
-| Sniper Auction V2 | `0x000007b64003ee07a69576F98859a0a36b854260` | [View](https://basescan.org/address/0x000007b64003ee07a69576F98859a0a36b854260#code) |
-| Sniper Util V2 | `0x000003Ee0cb9B0C82C6C7FCB7b81a9883F285270` | [View](https://basescan.org/address/0x000003Ee0cb9B0C82C6C7FCB7b81a9883F285270#code) |
-| MEV Block Delay | `0x0000035D83588954F3c581c3A66251b3F06AD5e4` | [View](https://basescan.org/address/0x0000035D83588954F3c581c3A66251b3F06AD5e4#code) |
-
-## Libraries
-
-| Contract | Address | Basescan |
-|----------|---------|----------|
-| Liquid Deployer Lib | `0x00000f88b2d37A2006F2F0C8552d22E0b8945202` | [View](https://basescan.org/address/0x00000f88b2d37A2006F2F0C8552d22E0b8945202#code) |
+| Sniper Auction V2 | `0x187e8627c02c58F31831953C1268e157d3BfCefd` | [View](https://basescan.org/address/0x187e8627c02c58F31831953C1268e157d3BfCefd#code) |
+| MEV Descending Fees | `0x8D6B080e48756A99F3893491D556B5d6907b6910` | [View](https://basescan.org/address/0x8D6B080e48756A99F3893491D556B5d6907b6910#code) |
+| Sniper Util V2 | `0x2B6cd5Be183c388Dd0074d53c52317df1414cd9f` | [View](https://basescan.org/address/0x2B6cd5Be183c388Dd0074d53c52317df1414cd9f#code) |
 
 ## External Dependencies
 

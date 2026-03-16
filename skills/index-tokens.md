@@ -496,6 +496,6 @@ event TokenCreated(
 ```typescript
 import { ADDRESSES } from "liquid-sdk";
 
-ADDRESSES.FACTORY  // 0x0000003482fe299E72d4908368044A8A173BE576
+ADDRESSES.FACTORY  // 0x04F1a284168743759BE6554f607a10CEBdB77760
 // All TokenCreated events are emitted from this address
 ```
