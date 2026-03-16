@@ -37,7 +37,7 @@ All notable changes to `liquid-sdk` will be documented in this file.
 ### Changed
 - Default hook switched to `HOOK_STATIC_FEE_V2` with proper two-layer pool data encoding
 - Default positions changed from single full-range to 3-tranche Liquid preset
-- Default MEV module switched to `SNIPER_AUCTION_V2` with 80%→40% decay over 32s
+- Default MEV module switched to `SNIPER_AUCTION_V2` with 80%→40% decay over 15s
 
 ## [1.0.0] - 2025-02-15
 

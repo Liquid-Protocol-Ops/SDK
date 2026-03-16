@@ -45,7 +45,7 @@ For token deployment, follow the instructions in node_modules/liquid-sdk/skills/
 npm install liquid-sdk viem
 ```
 
-> **Defaults**: Static 1% fee (both buy and sell), 5-position Liquid layout, Sniper Auction MEV (80%→40% over 32s, 5 rounds), tick spacing 200, starting tick -230400 (~10 ETH market cap). All fees converted to ETH before distribution.
+> **Defaults**: Static 1% fee (both buy and sell), 5-position Liquid layout, Sniper Auction MEV (80%→40% over 15s, 5 rounds), tick spacing 200, starting tick -230400 (~10 ETH market cap). All fees converted to ETH before distribution.
 
 ### Default Liquidity Positions
 

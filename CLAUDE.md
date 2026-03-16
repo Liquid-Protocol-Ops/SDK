@@ -16,7 +16,7 @@
 User calls sdk.deployToken(params)
   └─► Factory deploys token + Uniswap V4 pool
        ├─► Hook (Static Fee V2) charges 1% on both buys and sells
-       ├─► MEV module (Sniper Auction V2) charges 80% → 40% decaying over 32s
+       ├─► MEV module (Sniper Auction V2) charges 80% → 40% decaying over 15s
        ├─► LP Locker permanently locks all liquidity (5-position "Liquid" layout)
        ├─► Fee Locker accumulates creator rewards in WETH (FeePreference.Paired)
        └─► Optional extensions: dev buy, vault, airdrop
@@ -140,7 +140,7 @@ const ext = sdk.buildDevBuyExtension({ ethAmount: parseEther("0.1"), recipient: 
 | `locker` | `LP_LOCKER_FEE_CONVERSION` |
 | `rewardRecipients` | `[deployer]` (100%) |
 | `positionBps` | `[1000, 5000, 1500, 2000, 500]` (5-position Liquid layout) |
-| `mevModule` | `SNIPER_AUCTION_V2` (80% → 40% over 32s) |
+| `mevModule` | `SNIPER_AUCTION_V2` (80% → 40% over 15s) |
 | `lockerData` | `FeePreference.Paired` (ETH-only fee accumulation) |
 | `poolData` | `encodeStaticFeePoolData(100, 100)` (1% sell, 1% buy) |
 
@@ -316,7 +316,7 @@ V4_SWAP actions: 0x06 0x0c 0x0f  (SWAP_EXACT_IN_SINGLE, SETTLE_ALL, TAKE_ALL)
 |-------|------|-------|
 | Static LP Fee | 1% on buys, 1% on sells | Fees collected in both tokens |
 | Protocol Fee | 20% of LP fee | Goes to Liquid Protocol team |
-| MEV Fee (Sniper Auction) | 80% → 40% | Decays from 80% to 40% over 32 seconds after pool launch |
+| MEV Fee (Sniper Auction) | 80% → 40% | Decays from 80% to 40% over 15 seconds after pool launch |
 
 Fee denominator: `1,000,000`. So `10000 = 1%`, `100000 = 10%`, `800000 = 80%`.
 

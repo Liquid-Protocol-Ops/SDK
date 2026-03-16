@@ -97,11 +97,11 @@ describe("encodeDynamicFeePoolData", () => {
 });
 
 describe("encodeSniperAuctionData", () => {
-  it("encodes 80% → 40% over 32 seconds (default)", () => {
+  it("encodes 80% → 40% over 15 seconds (default)", () => {
     const result = encodeSniperAuctionData({
       startingFee: 800_000,
       endingFee: 400_000,
-      secondsToDecay: 32,
+      secondsToDecay: 15,
     });
     expect(result).toMatch(/^0x[0-9a-f]+$/);
   });
@@ -110,7 +110,7 @@ describe("encodeSniperAuctionData", () => {
     const result = encodeSniperAuctionData({
       startingFee: 800_000,
       endingFee: 400_000,
-      secondsToDecay: 32,
+      secondsToDecay: 15,
     });
 
     const decoded = decodeAbiParameters(
@@ -129,7 +129,7 @@ describe("encodeSniperAuctionData", () => {
 
     expect(decoded[0].startingFee).toBe(800_000);
     expect(decoded[0].endingFee).toBe(400_000);
-    expect(decoded[0].secondsToDecay).toBe(32n);
+    expect(decoded[0].secondsToDecay).toBe(15n);
   });
 
   it("throws if startingFee <= endingFee", () => {
@@ -137,7 +137,7 @@ describe("encodeSniperAuctionData", () => {
       encodeSniperAuctionData({
         startingFee: 400_000,
         endingFee: 800_000,
-        secondsToDecay: 32,
+        secondsToDecay: 15,
       })
     ).toThrow("startingFee must be greater than endingFee");
   });

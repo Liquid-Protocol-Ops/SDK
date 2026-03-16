@@ -519,7 +519,7 @@ When calling `deployToken`, all fields except `name` and `symbol` are optional. 
 | `tickLower` | `[-230400, -198600, -168600]` | 3-tranche Liquid default |
 | `tickUpper` | `[-198600, -168600, -122600]` | 3-tranche Liquid default |
 | `positionBps` | `[4000, 5000, 1000]` | 40% / 50% / 10% |
-| `mevModule` | `ADDRESSES.SNIPER_AUCTION_V2` | 80%→40% over 32s |
+| `mevModule` | `ADDRESSES.SNIPER_AUCTION_V2` | 80%→40% over 15s |
 | `extensions` | `[]` | No extensions |
 
 ---

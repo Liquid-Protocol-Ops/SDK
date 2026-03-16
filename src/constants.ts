@@ -132,7 +132,7 @@ export const POOL_POSITIONS = {
  * Liquid protocol defaults.
  *
  * - Hook: Static fee V2, 1% on both buys and sells
- * - MEV: Sniper Auction V2 — 80% → 40% decaying over 32 seconds
+ * - MEV: Sniper Auction V2 — 80% → 40% decaying over 15 seconds
  * - Tick spacing: 200
  * - Starting tick: -230400 (≈10 ETH market cap)
  * - Positions: 3-tranche Liquid default (40/50/10)
@@ -153,8 +153,8 @@ export const DEFAULTS = {
   SNIPER_STARTING_FEE: 800_000,
   /** Sniper auction ending fee: 40% (400,000 uniBps) */
   SNIPER_ENDING_FEE: 400_000,
-  /** Sniper auction decay period: 32 seconds */
-  SNIPER_SECONDS_TO_DECAY: 32,
+  /** Sniper auction decay period: 15 seconds */
+  SNIPER_SECONDS_TO_DECAY: 15,
 } as const;
 
 // ── Chain ────────────────────────────────────────────────────────────

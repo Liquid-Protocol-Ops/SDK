@@ -172,7 +172,7 @@ const result = await sdk.deployToken({
 | `positionBps` | `number[]` | 5-tranche Liquid default | Supply % per position (sum = 10000) |
 | `lockerData` | `Hex` | auto-encoded | Locker init data |
 | `mevModule` | `Address` | Sniper Auction V2 | MEV protection module |
-| `mevModuleData` | `Hex` | 80%→40% over 32s | Encoded auction config |
+| `mevModuleData` | `Hex` | 80%→40% over 15s | Encoded auction config |
 | `extensions` | `ExtensionConfig[]` | `[]` | Additional extensions |
 | `devBuy` | `DevBuyParams` | none | Buy tokens at launch |
 
@@ -204,7 +204,7 @@ When `deployToken()` executes, a single transaction:
 2. **Initializes a Uniswap V4 pool** paired with WETH
 3. **Locks all LP** in the LP Locker (non-ruggable)
 4. **Configures reward splits** for fee distribution
-5. **Activates MEV protection** (sniper auction: 80%→40% fee decay over 32 seconds)
+5. **Activates MEV protection** (sniper auction: 80%→40% fee decay over 15 seconds)
 6. **Executes dev buy** if specified (swaps ETH→tokens in same tx)
 7. **Emits `TokenCreated` event** with all deployment data
 

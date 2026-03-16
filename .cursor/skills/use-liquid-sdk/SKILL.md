@@ -229,7 +229,7 @@ const unlockTime = await sdk.getPoolUnlockTime(poolId);
 | `tickSpacing` | 200 |
 | `tickIfToken0IsLiquid` | -230400 (~10 ETH market cap) |
 | `positions` | 3-tranche: 40% → $500K, 50% → $10M, 10% → $1B |
-| `mevModule` | Sniper Auction V2 (80% → 40% over 32s) |
+| `mevModule` | Sniper Auction V2 (80% → 40% over 15s) |
 | `rewardRecipients` | [deployer] at 100% |
 | `context` | `{"interface":"SDK"}` |
 

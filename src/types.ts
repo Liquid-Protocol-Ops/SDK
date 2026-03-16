@@ -102,7 +102,7 @@ export interface DeployTokenParams {
 
   /** MEV module address. Defaults to SNIPER_AUCTION_V2 */
   mevModule?: Address;
-  /** MEV module data. Defaults to 80%→40% decay over 32s */
+  /** MEV module data. Defaults to 80%→40% decay over 15s */
   mevModuleData?: Hex;
 
   /** Extension configs (vault, airdrop, etc.) */
