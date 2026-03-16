@@ -428,9 +428,30 @@ const maxRounds = await sdk.getAuctionMaxRounds();
 ```typescript
 const gasPrice = await sdk.getAuctionGasPriceForBid(
   auction.gasPeg,
-  parseEther("1"),  // desired bid
+  parseEther("0.001"),  // desired bid
 );
 ```
+
+#### `sdk.bidInAuction(params, gasPrice)` — Bid in auction and swap tokens
+
+Requires wallet. Auto-wraps ETH → WETH and approves SniperUtilV2 if needed. Sets gas manually (800K) and both `maxFeePerGas`/`maxPriorityFeePerGas` to the auction gas price.
+
+```typescript
+const rewards = await sdk.getTokenRewards(tokenAddress);
+const zeroForOne = rewards.poolKey.currency0.toLowerCase() === EXTERNAL.WETH.toLowerCase();
+
+const result = await sdk.bidInAuction({
+  poolKey: rewards.poolKey,
+  zeroForOne,                        // depends on token sort order vs WETH
+  amountIn: parseEther("0.001"),     // WETH to swap (auto-wrapped from ETH)
+  amountOutMinimum: 0n,              // set slippage in production
+  round: auction.round,              // must match current on-chain round
+  bidAmount: parseEther("0.0005"),   // ETH bid (sent as msg.value)
+}, gasPrice);
+// result.txHash — transaction hash
+```
+
+**Important:** The bid is valid only at `nextAuctionBlock`. Submit when `currentBlock === nextAuctionBlock - 1`. The `amountIn` is pulled from your WETH balance (separate from the bid's `msg.value`). Auction runs 5 rounds, every 2 blocks, starting 2 blocks after deployment.
 
 ---
 

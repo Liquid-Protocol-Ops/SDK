@@ -861,7 +861,7 @@ export class LiquidSDK {
       value: params.bidAmount,
       chain: base,
       account,
-      gas: 500_000n,
+      gas: 800_000n,
       maxFeePerGas,
       maxPriorityFeePerGas: maxFeePerGas,
     });

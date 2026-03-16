@@ -53,7 +53,7 @@ The SDK **automatically wraps ETH → WETH and approves the SniperUtilV2** if yo
 The bid amount is encoded in the transaction's gas price: `bidAmount = (tx.gasprice - gasPeg) × paymentPerGasUnit`. Both `maxFeePerGas` **and** `maxPriorityFeePerGas` must be set to the calculated value, otherwise Base's EIP-1559 will compute a lower effective gas price.
 
 ### Gas Estimation Must Be Skipped
-`eth_estimateGas` simulates at `baseFee` (~5M wei on Base), which is below the `gasPeg` (~6.3M wei). This causes the auction check to fail during estimation. The SDK sets `gas: 500_000n` manually.
+`eth_estimateGas` simulates at `baseFee` (~5M wei on Base), which is below the `gasPeg` (~6.3M wei). This causes the auction check to fail during estimation. The SDK sets `gas: 800_000n` manually.
 
 ### Block Timing is Critical
 The auction is valid at **exactly** `nextAuctionBlock` — not before, not after. Submit your transaction ~1 block early (when `currentBlock === nextAuctionBlock - 1`) to land in the target block. Base has ~2s block time.
@@ -255,7 +255,7 @@ await snipeToken("0x...", "0.001", "0.001");
 6. Call `sdk.bidInAuction(params, gasPrice)` — SDK handles:
    - Auto-wrapping ETH → WETH for `amountIn`
    - Auto-approving SniperUtilV2 for WETH
-   - Setting `gas: 500_000n` (skipping estimation)
+   - Setting `gas: 800_000n` (skipping estimation)
    - Setting `maxFeePerGas` and `maxPriorityFeePerGas` to the calculated value
 7. Transaction lands in `nextAuctionBlock` → snipe complete
 
@@ -311,7 +311,7 @@ console.log(`Current fee: ${feePercent}%`);
 | `Unauthorized()` | `0x82b42900` | Fee Locker hasn't authorized the Sniper Auction as depositor | Protocol admin must call `FeeLocker.addDepositor(SniperAuctionAddress)` |
 | `NotAuctionBlock()` | — | Tx didn't land in `nextAuctionBlock` | Submit 1 block early, tx must mine in the exact auction block |
 | WETH `transferFrom` revert | — | Insufficient WETH balance or allowance | SDK handles this automatically; ensure enough ETH for wrap |
-| Gas estimation failure | — | `eth_estimateGas` runs at baseFee < gasPeg | SDK sets `gas: 500_000n` manually |
+| Gas estimation failure | — | `eth_estimateGas` runs at baseFee < gasPeg | SDK sets `gas: 800_000n` manually |
 
 ## Read-Only Auction Queries (No Wallet Needed)
 
