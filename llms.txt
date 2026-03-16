@@ -120,7 +120,7 @@ Every token gets 100 billion supply (18 decimals), a Uniswap V4 pool, and locked
 | hook | Static fee V2 (1% buy fee) |
 | tickSpacing | 200 |
 | tickIfToken0IsLiquid | -230400 (~10 ETH market cap) |
-| positions | 3-tranche: 40% to $500K, 50% to $10M, 10% to $1B |
+| positions | 5-position Liquid layout: 10%/50%/15%/20%/5% |
 | mevModule | Sniper Auction V2 (80%→40% over 32s) |
 | rewardRecipients | [deployer] at 100% |
 | context | {"interface":"SDK"} |
