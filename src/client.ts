@@ -4,10 +4,12 @@ import {
   type Hex,
   type PublicClient,
   type WalletClient,
+  type Abi,
   createPublicClient,
   http,
   decodeEventLog,
   encodeAbiParameters,
+  encodeFunctionData,
   encodePacked,
   keccak256,
   getAddress,
@@ -61,6 +63,45 @@ export class LiquidSDK {
       transport: http(),
     });
     this.walletClient = config.walletClient;
+  }
+
+  // ── Write Helper ────────────────────────────────────────────────
+  // Privy embedded wallets don't support `wallet_sendTransaction` (used by
+  // viem's writeContract). This helper encodes the call and sends via
+  // `sendTransaction` which uses `eth_sendTransaction` — supported by all
+  // providers including Privy. Falls back to writeContract for providers
+  // that don't support eth_sendTransaction (shouldn't happen in practice).
+
+  private async _writeContract(params: {
+    address: Address;
+    abi: Abi;
+    functionName: string;
+    args?: unknown[];
+    value?: bigint;
+    gas?: bigint;
+    maxFeePerGas?: bigint;
+    maxPriorityFeePerGas?: bigint;
+  }): Promise<Hash> {
+    if (!this.walletClient?.account) {
+      throw new Error("walletClient with account required");
+    }
+
+    const data = encodeFunctionData({
+      abi: params.abi,
+      functionName: params.functionName,
+      args: params.args ?? [],
+    });
+
+    return await this.walletClient.sendTransaction({
+      to: params.address,
+      data,
+      value: params.value ?? 0n,
+      chain: base,
+      account: this.walletClient.account,
+      gas: params.gas,
+      maxFeePerGas: params.maxFeePerGas,
+      maxPriorityFeePerGas: params.maxPriorityFeePerGas,
+    });
   }
 
   // ── Dev Buy Helper ───────────────────────────────────────────────
@@ -341,14 +382,12 @@ export class LiquidSDK {
       0n
     );
 
-    const txHash = await this.walletClient.writeContract({
+    const txHash = await this._writeContract({
       address: ADDRESSES.FACTORY,
-      abi: LiquidFactoryAbi,
+      abi: LiquidFactoryAbi as Abi,
       functionName: "deployToken",
       args: [deploymentConfig],
       value: msgValue,
-      chain: base,
-      account: this.walletClient.account,
     });
 
     const receipt = await this.publicClient.waitForTransactionReceipt({
@@ -566,13 +605,11 @@ export class LiquidSDK {
       throw new Error("walletClient with account required for claimFees");
     }
 
-    return await this.walletClient.writeContract({
+    return await this._writeContract({
       address: ADDRESSES.FEE_LOCKER,
-      abi: LiquidFeeLockerAbi,
+      abi: LiquidFeeLockerAbi as Abi,
       functionName: "claim",
       args: [feeOwner, tokenAddress],
-      chain: base,
-      account: this.walletClient.account,
     });
   }
 
@@ -613,13 +650,11 @@ export class LiquidSDK {
       throw new Error("walletClient with account required for claimVault");
     }
 
-    return await this.walletClient.writeContract({
+    return await this._writeContract({
       address: ADDRESSES.VAULT,
-      abi: LiquidVaultAbi,
+      abi: LiquidVaultAbi as Abi,
       functionName: "claim",
       args: [tokenAddress],
-      chain: base,
-      account: this.walletClient.account,
     });
   }
 
@@ -785,14 +820,12 @@ export class LiquidSDK {
 
     if (wethBalance < params.amountIn) {
       const wrapAmount = params.amountIn - wethBalance;
-      const wrapTx = await this.walletClient.writeContract({
+      const wrapTx = await this._writeContract({
         address: weth,
-        abi: [{ type: "function", name: "deposit", inputs: [], outputs: [], stateMutability: "payable" }] as const,
+        abi: [{ type: "function", name: "deposit", inputs: [], outputs: [], stateMutability: "payable" }] as Abi,
         functionName: "deposit",
         args: [],
         value: wrapAmount,
-        chain: base,
-        account,
       });
       await this.publicClient.waitForTransactionReceipt({ hash: wrapTx });
     }
@@ -806,13 +839,11 @@ export class LiquidSDK {
     })) as bigint;
 
     if (allowance < params.amountIn) {
-      const approveTx = await this.walletClient.writeContract({
+      const approveTx = await this._writeContract({
         address: weth,
-        abi: ERC20Abi,
+        abi: ERC20Abi as Abi,
         functionName: "approve",
         args: [ADDRESSES.SNIPER_UTIL_V2, params.amountIn * 10n],
-        chain: base,
-        account,
       });
       await this.publicClient.waitForTransactionReceipt({ hash: approveTx });
     }
@@ -844,9 +875,9 @@ export class LiquidSDK {
     // effective gas price = maxFeePerGas on Base (EIP-1559 L2).
     // Gas is set manually because eth_estimateGas simulates at baseFee
     // which is below gasPeg, causing the auction check to fail.
-    const txHash = await this.walletClient.writeContract({
+    const txHash = await this._writeContract({
       address: ADDRESSES.SNIPER_UTIL_V2,
-      abi: LiquidSniperUtilV2Abi,
+      abi: LiquidSniperUtilV2Abi as Abi,
       functionName: "bidInAuction",
       args: [
         {
@@ -859,8 +890,6 @@ export class LiquidSDK {
         params.round,
       ],
       value: params.bidAmount,
-      chain: base,
-      account,
       gas: 800_000n,
       maxFeePerGas,
       maxPriorityFeePerGas: maxFeePerGas,
@@ -915,13 +944,11 @@ export class LiquidSDK {
       throw new Error("walletClient with account required for claimAirdrop");
     }
 
-    return await this.walletClient.writeContract({
+    return await this._writeContract({
       address: ADDRESSES.AIRDROP_V2,
-      abi: LiquidAirdropV2Abi,
+      abi: LiquidAirdropV2Abi as Abi,
       functionName: "claim",
       args: [tokenAddress, recipient, allocatedAmount, proof],
-      chain: base,
-      account: this.walletClient.account,
     });
   }
 
@@ -960,13 +987,11 @@ export class LiquidSDK {
     }
 
     const locker = lockerAddress ?? DEFAULTS.LOCKER;
-    return await this.walletClient.writeContract({
+    return await this._writeContract({
       address: locker,
-      abi: LiquidLpLockerAbi,
+      abi: LiquidLpLockerAbi as Abi,
       functionName: "collectRewards",
       args: [tokenAddress],
-      chain: base,
-      account: this.walletClient.account,
     });
   }
 
@@ -981,13 +1006,11 @@ export class LiquidSDK {
     }
 
     const locker = lockerAddress ?? DEFAULTS.LOCKER;
-    return await this.walletClient.writeContract({
+    return await this._writeContract({
       address: locker,
-      abi: LiquidLpLockerAbi,
+      abi: LiquidLpLockerAbi as Abi,
       functionName: "collectRewardsWithoutUnlock",
       args: [tokenAddress],
-      chain: base,
-      account: this.walletClient.account,
     });
   }
 
@@ -1004,13 +1027,11 @@ export class LiquidSDK {
     }
 
     const locker = lockerAddress ?? DEFAULTS.LOCKER;
-    return await this.walletClient.writeContract({
+    return await this._writeContract({
       address: locker,
-      abi: LiquidLpLockerAbi,
+      abi: LiquidLpLockerAbi as Abi,
       functionName: "updateRewardRecipient",
       args: [tokenAddress, rewardIndex, newRecipient],
-      chain: base,
-      account: this.walletClient.account,
     });
   }
 
@@ -1054,13 +1075,11 @@ export class LiquidSDK {
       throw new Error("walletClient with account required for updateImage");
     }
 
-    return await this.walletClient.writeContract({
+    return await this._writeContract({
       address: tokenAddress,
-      abi: LiquidTokenAbi,
+      abi: LiquidTokenAbi as Abi,
       functionName: "updateImage",
       args: [newImage],
-      chain: base,
-      account: this.walletClient.account,
     });
   }
 
@@ -1075,13 +1094,11 @@ export class LiquidSDK {
       throw new Error("walletClient with account required for updateMetadata");
     }
 
-    return await this.walletClient.writeContract({
+    return await this._writeContract({
       address: tokenAddress,
-      abi: LiquidTokenAbi,
+      abi: LiquidTokenAbi as Abi,
       functionName: "updateMetadata",
       args: [newMetadata],
-      chain: base,
-      account: this.walletClient.account,
     });
   }
 
