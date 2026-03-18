@@ -18,7 +18,7 @@ import {
 } from "viem";
 import { base } from "viem/chains";
 import { ADDRESSES, EXTERNAL, DEFAULT_CHAIN_ID, DEFAULTS, POOL_POSITIONS, FEE, TOKEN } from "./constants";
-import { encodeStaticFeePoolData, encodeDynamicFeePoolData, encodeSniperAuctionData, encodeFeeConversionLockerData, FeePreference } from "./utils/encoding";
+import { encodeStaticFeePoolData, encodeSniperAuctionData, encodeFeeConversionLockerData, FeePreference } from "./utils/encoding";
 import { buildContext } from "./utils/context";
 import { LiquidFactoryAbi } from "./abis/LiquidFactory";
 import { LiquidFeeLockerAbi } from "./abis/LiquidFeeLocker";
@@ -309,34 +309,19 @@ export class LiquidSDK {
         context: params.context ?? buildContext(),
         originatingChainId: BigInt(DEFAULT_CHAIN_ID),
       },
-      poolConfig: (() => {
-        const hook = params.hook ?? DEFAULTS.HOOK;
-        const isDynamic = getAddress(hook) === getAddress(ADDRESSES.HOOK_DYNAMIC_FEE_V2);
-
-        const poolData = params.poolData ?? (isDynamic
-          ? encodeDynamicFeePoolData({
-              baseFeeBps: DEFAULTS.DYNAMIC_BASE_FEE_BPS,
-              maxFeeBps: DEFAULTS.DYNAMIC_MAX_FEE_BPS,
-              referenceTickFilterPeriod: DEFAULTS.DYNAMIC_REF_TICK_FILTER_PERIOD,
-              resetPeriod: DEFAULTS.DYNAMIC_RESET_PERIOD,
-              resetTickFilter: DEFAULTS.DYNAMIC_RESET_TICK_FILTER,
-              feeControlNumerator: DEFAULTS.DYNAMIC_FEE_CONTROL_NUMERATOR,
-              decayFilterBps: DEFAULTS.DYNAMIC_DECAY_FILTER_BPS,
-            })
-          : encodeStaticFeePoolData(
-              DEFAULTS.LIQUID_FEE_BPS,
-              DEFAULTS.PAIRED_FEE_BPS,
-            ));
-
-        return {
-          hook,
-          pairedToken: params.pairedToken ?? EXTERNAL.WETH,
-          tickIfToken0IsLiquid:
-            params.tickIfToken0IsLiquid ?? DEFAULTS.TICK_IF_TOKEN0_IS_LIQUID,
-          tickSpacing: params.tickSpacing ?? DEFAULTS.TICK_SPACING,
-          poolData,
-        };
-      })(),
+      poolConfig: {
+        hook: params.hook ?? DEFAULTS.HOOK,
+        pairedToken: params.pairedToken ?? EXTERNAL.WETH,
+        tickIfToken0IsLiquid:
+          params.tickIfToken0IsLiquid ?? DEFAULTS.TICK_IF_TOKEN0_IS_LIQUID,
+        tickSpacing: params.tickSpacing ?? DEFAULTS.TICK_SPACING,
+        poolData:
+          params.poolData ??
+          encodeStaticFeePoolData(
+            DEFAULTS.LIQUID_FEE_BPS,
+            DEFAULTS.PAIRED_FEE_BPS,
+          ),
+      },
       lockerConfig: (() => {
         const locker = params.locker ?? DEFAULTS.LOCKER;
         const rewardRecipients = params.rewardRecipients ?? [account];
