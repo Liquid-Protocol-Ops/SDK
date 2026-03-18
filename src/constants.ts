@@ -149,6 +149,20 @@ export const DEFAULTS = {
   LIQUID_FEE_BPS: 100,
   /** MEV module: Sniper Auction V2 */
   MEV_MODULE: ADDRESSES.SNIPER_AUCTION_V2,
+  /** Dynamic fee: base fee 1% (100 bps) */
+  DYNAMIC_BASE_FEE_BPS: 100,
+  /** Dynamic fee: max fee 5% (500 bps) */
+  DYNAMIC_MAX_FEE_BPS: 500,
+  /** Dynamic fee: reference tick filter period (600 seconds) */
+  DYNAMIC_REF_TICK_FILTER_PERIOD: 600,
+  /** Dynamic fee: reset period (3600 seconds) */
+  DYNAMIC_RESET_PERIOD: 3600,
+  /** Dynamic fee: reset tick filter (1000 ticks) */
+  DYNAMIC_RESET_TICK_FILTER: 1000,
+  /** Dynamic fee: fee control numerator */
+  DYNAMIC_FEE_CONTROL_NUMERATOR: 50000n,
+  /** Dynamic fee: decay filter (5000 bps = 50%) */
+  DYNAMIC_DECAY_FILTER_BPS: 5000,
   /** Sniper auction starting fee: 80% (800,000 uniBps) */
   SNIPER_STARTING_FEE: 800_000,
   /** Sniper auction ending fee: 40% (400,000 uniBps) */
