@@ -43,13 +43,42 @@ const result = await sdk.deployToken({
 
 This creates a token with 100 billion supply, a Uniswap V4 pool, locked liquidity, 1% fee on both buys and sells, and sniper auction MEV protection — all with sensible defaults.
 
+### Deploy with Image (IPFS recommended)
+
+```typescript
+// Pin to IPFS first with your own Pinata key (free: 500MB)
+const form = new FormData();
+form.append("file", imageFile); // PNG/JPEG/WEBP/GIF, 256x256 recommended
+
+const pinata = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
+  method: "POST",
+  headers: { "Authorization": "Bearer YOUR_PINATA_JWT" },
+  body: form,
+}).then(r => r.json());
+
+const result = await sdk.deployToken({
+  name: "My Token",
+  symbol: "MTK",
+  image: `ipfs://${pinata.IpfsHash}`,  // permanent, decentralized
+});
+
+// Or use any URL directly (less permanent)
+const result2 = await sdk.deployToken({
+  name: "My Token",
+  symbol: "MTK",
+  image: "ipfs://QmYourImageCID",
+});
+```
+
+Get a Pinata JWT at https://app.pinata.cloud/developers/api-keys.
+
 ### Deploy with Dev Buy (buy tokens at launch)
 
 ```typescript
 const result = await sdk.deployToken({
   name: "My Token",
   symbol: "MTK",
-  image: "https://example.com/logo.png",
+  image: "ipfs://QmYourImageCID",
   metadata: JSON.stringify({ description: "Launched by an AI agent" }),
   devBuy: {
     ethAmount: parseEther("0.01"), // ETH to spend buying tokens at launch

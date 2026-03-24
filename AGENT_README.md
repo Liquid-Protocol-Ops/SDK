@@ -54,7 +54,7 @@ Requires wallet. Creates the token, pool, locks LP, and optionally buys tokens a
 const result = await sdk.deployToken({
   name: "My Token",
   symbol: "MTK",
-  image: "https://example.com/logo.png",     // optional
+  image: "ipfs://QmYourImageCID",              // optional, IPFS recommended
   metadata: '{"description":"A cool token"}', // optional, JSON string
   context: '{"platform":"my-app"}',           // optional, tracking/attribution
 
@@ -642,7 +642,7 @@ const sdk = new LiquidSDK({ publicClient, walletClient });
 const result = await sdk.deployToken({
   name: "Agent Token",
   symbol: "AGENT",
-  image: "https://example.com/logo.png",
+  image: "ipfs://QmYourImageCID",
   metadata: JSON.stringify({ description: "Deployed by an AI agent" }),
   devBuy: {
     ethAmount: parseEther("0.01"),

@@ -44,7 +44,7 @@ These fields define how the token appears in wallets, aggregators, and explorers
 const result = await sdk.deployToken({
   name: "My Project Token",                    // Token name (required)
   symbol: "MPT",                               // Token symbol (required)
-  image: "https://example.com/logo.png",       // Logo URL (shown in wallets)
+  image: "ipfs://QmYourImageCID",              // IPFS URI (recommended) or HTTPS URL
   metadata: buildMetadata({                    // Rich metadata (JSON, on-chain)
     description: "A community token for builders on Base",
     socialMediaUrls: [
@@ -76,6 +76,43 @@ await sdk.updateMetadata(tokenAddress, buildMetadata({
   ],
 }));
 ```
+
+### Image Upload (IPFS)
+
+Token images should be pinned to IPFS for permanence. The `image` field in `deployToken()` accepts any string — use an `ipfs://` URI for permanent storage.
+
+**Pin with your own Pinata key:**
+
+```typescript
+// 1. Pin image to IPFS via Pinata (your own API key)
+const form = new FormData();
+form.append("file", imageFile); // PNG, JPEG, WEBP, or GIF
+
+const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
+  method: "POST",
+  headers: { "Authorization": "Bearer YOUR_PINATA_JWT" },
+  body: form,
+});
+const { IpfsHash } = await res.json();
+const ipfsUri = `ipfs://${IpfsHash}`;
+
+// 2. Deploy with IPFS image
+await sdk.deployToken({
+  name: "My Token",
+  symbol: "MTK",
+  image: ipfsUri, // stored on-chain permanently
+});
+```
+
+Get a Pinata JWT at https://app.pinata.cloud/developers/api-keys (free tier: 500MB).
+
+**Recommended:** 256x256 or 512x512 PNG, square. This is the standard size for DexScreener, wallet apps, and token lists.
+
+**Accepted formats:** PNG, JPEG, WEBP, GIF.
+
+You can also use any `https://` URL — the `image` field accepts any string. But IPFS URIs are preferred because they're permanent and decentralized.
+
+---
 
 ### Token Metadata Schema
 
@@ -278,7 +315,7 @@ Only the token admin can update image and metadata after deployment.
 
 ```typescript
 // Update image
-await sdk.updateImage(tokenAddress, "https://new-image.example.com/logo.png");
+await sdk.updateImage(tokenAddress, "ipfs://QmNewImageCID...");
 
 // Update metadata
 await sdk.updateMetadata(tokenAddress, buildMetadata({
