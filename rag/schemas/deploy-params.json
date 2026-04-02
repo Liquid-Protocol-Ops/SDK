@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DeployTokenParams",
+  "description": "Parameters for sdk.deployToken(). Only 'name' and 'symbol' are required -- all other fields have sensible defaults.",
+  "type": "object",
+  "required": ["name", "symbol"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Token name (e.g., 'My Token'). Stored on-chain in the ERC-20 contract and emitted in the TokenCreated event."
+    },
+    "symbol": {
+      "type": "string",
+      "description": "Token symbol (e.g., 'MTK'). Stored on-chain in the ERC-20 contract."
+    },
+    "image": {
+      "type": "string",
+      "default": "",
+      "description": "Token image URL. IPFS URIs recommended (e.g., 'ipfs://QmHash'). Stored on-chain in the TokenCreated event. Recommended: 256x256 or 512x512 PNG."
+    },
+    "metadata": {
+      "type": "string",
+      "default": "",
+      "description": "JSON string with token metadata. Schema: { description?: string, socialMediaUrls?: { platform: string, url: string }[], auditUrls?: string[] }. Use buildMetadata() helper to construct."
+    },
+    "context": {
+      "type": "string",
+      "default": "{\"interface\":\"SDK\"}",
+      "description": "JSON string with deployment provenance. Schema: { interface: string, platform?: string, messageId?: string, id?: string }. Auto-set to {\"interface\":\"SDK\"} if omitted. Use buildContext() helper."
+    },
+    "tokenAdmin": {
+      "type": "string",
+      "format": "address",
+      "default": "<walletClient.account.address>",
+      "description": "Address that can update token image and metadata after deployment. Defaults to the deployer wallet address."
+    },
+    "salt": {
+      "type": "string",
+      "format": "hex",
+      "default": "keccak256(name + symbol + timestamp)",
+      "description": "CREATE2 salt for deterministic token address. Auto-generated from name + symbol + current timestamp if omitted."
+    },
+    "hook": {
+      "type": "string",
+      "format": "address",
+      "default": "0x9811f10Cd549c754Fa9E5785989c422A762c28cc",
+      "description": "Fee hook contract address. Default: HOOK_STATIC_FEE_V2 (1% buy + 1% sell static fees). Alternative: HOOK_DYNAMIC_FEE_V2 (0x80E2F7dC8C2C880BbC4BDF80A5Fb0eB8B1DB68CC) for volatility-responsive fees."
+    },
+    "pairedToken": {
+      "type": "string",
+      "format": "address",
+      "default": "0x4200000000000000000000000000000000000006",
+      "description": "Quote token for the Uniswap V4 pool. Default: WETH on Base. This is always currency0 in the pool key."
+    },
+    "tickIfToken0IsLiquid": {
+      "type": "integer",
+      "default": -230400,
+      "description": "Starting tick for the pool, which determines the initial market cap. Default: -230400 (approximately 10 ETH / ~$20K market cap). Formula: price = 1.0001^tick, marketCap = price * 100B supply."
+    },
+    "tickSpacing": {
+      "type": "integer",
+      "default": 200,
+      "description": "Uniswap V4 tick spacing. All tick values must be divisible by this number. Default: 200."
+    },
+    "poolData": {
+      "type": "string",
+      "format": "hex",
+      "default": "encodeStaticFeePoolData(100, 100)",
+      "description": "ABI-encoded pool initialization data for the hook. Default encodes 1% sell fee (100 BPS) + 1% buy fee (100 BPS) for the static fee hook. Use encodeStaticFeePoolData() or encodeDynamicFeePoolData() helpers."
+    },
+    "locker": {
+      "type": "string",
+      "format": "address",
+      "default": "0x77247fCD1d5e34A3703AcA898A591Dc7422435f3",
+      "description": "LP locker contract. Default: LP_LOCKER_FEE_CONVERSION which converts all fees to a preferred token (ETH by default) before distributing to reward recipients."
+    },
+    "rewardAdmins": {
+      "type": "array",
+      "items": { "type": "string", "format": "address" },
+      "default": "[walletAddress]",
+      "description": "Admin addresses for each reward recipient slot. Each admin can update the recipient at their index. Must be same length as rewardRecipients."
+    },
+    "rewardRecipients": {
+      "type": "array",
+      "items": { "type": "string", "format": "address" },
+      "default": "[walletAddress]",
+      "description": "Addresses that receive LP fee rewards. Must be same length as rewardAdmins and rewardBps."
+    },
+    "rewardBps": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 0, "maximum": 10000 },
+      "default": [10000],
+      "description": "Basis points for each reward recipient. Must sum to exactly 10000 (100%). Example: [7000, 3000] = 70%/30% split. IMMUTABLE after deployment."
+    },
+    "tickLower": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "default": "[-230400, -216000, -202000, -155000, -141000]",
+      "description": "Lower tick bounds for each LP position. Must be divisible by tickSpacing. At least one must equal tickIfToken0IsLiquid. Default: 5-position Liquid layout."
+    },
+    "tickUpper": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "default": "[-216000, -155000, -155000, -120000, -120000]",
+      "description": "Upper tick bounds for each LP position. Must be divisible by tickSpacing. Must be same length as tickLower."
+    },
+    "positionBps": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 0, "maximum": 10000 },
+      "default": [1000, 5000, 1500, 2000, 500],
+      "description": "Supply allocation per position in basis points. Must sum to 10000. Default 5-position Liquid layout: 10%/50%/15%/20%/5%."
+    },
+    "lockerData": {
+      "type": "string",
+      "format": "hex",
+      "default": "encodeFeeConversionLockerData([FeePreference.Paired])",
+      "description": "ABI-encoded locker initialization data. Default sets FeePreference.Paired (convert all fees to ETH) for each reward recipient."
+    },
+    "mevModule": {
+      "type": "string",
+      "format": "address",
+      "default": "0x187e8627c02c58F31831953C1268e157d3BfCefd",
+      "description": "MEV protection module. Default: SNIPER_AUCTION_V2. Alternative: MEV_DESCENDING_FEES (0x8D6B080e48756A99F3893491D556B5d6907b6910) for time-based parabolic fee decay."
+    },
+    "mevModuleData": {
+      "type": "string",
+      "format": "hex",
+      "default": "encodeSniperAuctionData({ startingFee: 800000, endingFee: 400000, secondsToDecay: 20 })",
+      "description": "ABI-encoded MEV module config. Default: 80% starting fee decaying to 40% over 20 seconds. Use encodeSniperAuctionData() helper."
+    },
+    "extensions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ExtensionConfig"
+      },
+      "default": [],
+      "description": "Additional extensions (vault, airdrop, presale). Max 10 extensions, max 90% (9000 BPS) of supply allocated to extensions total.",
+      "maxItems": 10
+    },
+    "devBuy": {
+      "$ref": "#/$defs/DevBuyParams",
+      "description": "Optional dev buy -- buy tokens with ETH in the same transaction as deployment. The SDK automatically appends a UNIV4_ETH_DEV_BUY extension. The ETH is swapped through the pool at normal 1% LP fees (not auction fees)."
+    }
+  },
+  "$defs": {
+    "ExtensionConfig": {
+      "type": "object",
+      "required": ["extension", "msgValue", "extensionBps", "extensionData"],
+      "properties": {
+        "extension": {
+          "type": "string",
+          "format": "address",
+          "description": "Extension contract address. Must be on the allowlist."
+        },
+        "msgValue": {
+          "type": "string",
+          "description": "ETH to send with the extension call (as bigint string). Usually 0n except for dev buy."
+        },
+        "extensionBps": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9000,
+          "description": "Basis points of total token supply allocated to this extension."
+        },
+        "extensionData": {
+          "type": "string",
+          "format": "hex",
+          "description": "ABI-encoded initialization data specific to the extension."
+        }
+      }
+    },
+    "DevBuyParams": {
+      "type": "object",
+      "required": ["ethAmount", "recipient"],
+      "properties": {
+        "ethAmount": {
+          "type": "string",
+          "description": "Amount of ETH to spend buying tokens (as bigint, in wei). Sent as msg.value."
+        },
+        "recipient": {
+          "type": "string",
+          "format": "address",
+          "description": "Address that receives the purchased tokens."
+        }
+      }
+    }
+  },
+  "validationRules": [
+    "1-7 positions allowed",
+    "positionBps must sum to exactly 10000",
+    "All ticks must be divisible by tickSpacing",
+    "All tickLower[i] must be >= tickIfToken0IsLiquid",
+    "At least one position must have tickLower == tickIfToken0IsLiquid",
+    "tickLower, tickUpper, and positionBps arrays must be the same length",
+    "rewardAdmins, rewardRecipients, and rewardBps arrays must be the same length",
+    "rewardBps must sum to exactly 10000",
+    "Max 10 extensions total",
+    "Total extensionBps across all extensions must not exceed 9000 (90% of supply)"
+  ]
+}

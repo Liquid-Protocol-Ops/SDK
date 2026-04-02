@@ -1,0 +1,111 @@
+{
+  "chain": {
+    "name": "Base",
+    "chainId": 8453,
+    "rpc": "https://mainnet.base.org",
+    "explorer": "https://basescan.org"
+  },
+  "liquidProtocol": {
+    "FACTORY": {
+      "address": "0x04F1a284168743759BE6554f607a10CEBdB77760",
+      "description": "Liquid.sol -- Token factory that orchestrates deployment of ERC-20 tokens, Uniswap V4 pool initialization, LP locking, MEV protection setup, and extension execution.",
+      "sdkConstant": "ADDRESSES.FACTORY"
+    },
+    "FEE_LOCKER": {
+      "address": "0xF7d3BE3FC0de76fA5550C29A8F6fa53667B876FF",
+      "description": "LiquidFeeLocker -- Escrow contract for LP fees. Stores per-owner, per-token fee balances. Only allowlisted depositors (LP Locker, Sniper Auction) can deposit. Anyone can trigger claim() for a fee owner.",
+      "sdkConstant": "ADDRESSES.FEE_LOCKER"
+    },
+    "LP_LOCKER_FEE_CONVERSION": {
+      "address": "0x77247fCD1d5e34A3703AcA898A591Dc7422435f3",
+      "description": "LiquidLpLockerFeeConversion -- Permanently locks Uniswap V4 LP positions. Collects fees from positions and converts them to a preferred token (ETH by default) before routing to the Fee Locker. Manages reward recipient addresses and BPS splits.",
+      "sdkConstant": "ADDRESSES.LP_LOCKER_FEE_CONVERSION"
+    },
+    "POOL_EXTENSION_ALLOWLIST": {
+      "address": "0xb614167d79aDBaA9BA35d05fE1d5542d7316Ccaa",
+      "description": "LiquidPoolExtensionAllowlist -- Manages per-pool extension permissions. Owned by the admin Gnosis Safe. Controls which extensions can interact with which pools.",
+      "sdkConstant": "ADDRESSES.POOL_EXTENSION_ALLOWLIST"
+    },
+    "HOOK_DYNAMIC_FEE_V2": {
+      "address": "0x80E2F7dC8C2C880BbC4BDF80A5Fb0eB8B1DB68CC",
+      "description": "LiquidHookDynamicFeeV2 -- Uniswap V4 hook implementing tick-based dynamic LP fee curves. Fee adjusts based on price volatility with configurable base/max fees, decay periods, and reset logic.",
+      "sdkConstant": "ADDRESSES.HOOK_DYNAMIC_FEE_V2"
+    },
+    "HOOK_STATIC_FEE_V2": {
+      "address": "0x9811f10Cd549c754Fa9E5785989c422A762c28cc",
+      "description": "LiquidHookStaticFeeV2 -- Uniswap V4 hook implementing fixed LP fees. Default is 1% on both buys and sells (100 BPS each direction). This is the default hook used by the SDK.",
+      "sdkConstant": "ADDRESSES.HOOK_STATIC_FEE_V2"
+    },
+    "VAULT": {
+      "address": "0xdFCCC93257c20519A9005A2281CFBdF84836d50E",
+      "description": "LiquidVault -- Extension for token lockup with linear vesting. Tokens are locked for a configurable lockup period, then vest linearly until vestingEndTime. Admin can claim vested tokens.",
+      "sdkConstant": "ADDRESSES.VAULT"
+    },
+    "SNIPER_AUCTION_V2": {
+      "address": "0x187e8627c02c58F31831953C1268e157d3BfCefd",
+      "description": "LiquidSniperAuctionV2 -- MEV protection module. Runs a gas-price auction for 5 rounds (every 2 blocks) starting 2 blocks after deployment. Fee decays from 80% to 40% over 20 seconds. Highest gas-price bidder wins each round.",
+      "sdkConstant": "ADDRESSES.SNIPER_AUCTION_V2"
+    },
+    "SNIPER_UTIL_V2": {
+      "address": "0x2B6cd5Be183c388Dd0074d53c52317df1414cd9f",
+      "description": "LiquidSniperUtilV2 -- Utility contract for executing sniper auction bids. Handles WETH transfer, swap execution, and gas price encoding for bid amount calculation.",
+      "sdkConstant": "ADDRESSES.SNIPER_UTIL_V2"
+    },
+    "MEV_DESCENDING_FEES": {
+      "address": "0x8D6B080e48756A99F3893491D556B5d6907b6910",
+      "description": "LiquidMevDescendingFees -- Alternative MEV protection module. Applies a parabolic fee decay starting at up to 80% (800,000 uniBps) that decays over a maximum of 2 minutes. No auction mechanics -- purely time-based fee decay.",
+      "sdkConstant": "ADDRESSES.MEV_DESCENDING_FEES"
+    },
+    "AIRDROP_V2": {
+      "address": "0x1423974d48f525462f1c087cBFdCC20BDBc33CdD",
+      "description": "LiquidAirdropV2 -- Merkle-based token airdrop extension. Supports mutable merkle root (admin can update), lockup period before claims open, linear vesting after lockup, and admin reclaim of unclaimed tokens.",
+      "sdkConstant": "ADDRESSES.AIRDROP_V2"
+    },
+    "UNIV4_ETH_DEV_BUY": {
+      "address": "0x5934097864dC487D21A7B4e4EEe201A39ceF728D",
+      "description": "LiquidUniv4EthDevBuy -- Extension that executes a dev buy (ETH-to-token swap) through the Uniswap V4 pool in the same transaction as token deployment. Used when devBuy is specified in deployToken().",
+      "sdkConstant": "ADDRESSES.UNIV4_ETH_DEV_BUY"
+    },
+    "UNIV3_ETH_DEV_BUY": {
+      "address": "0x376028cfb6b9A120E24Aa14c3FAc4205179c0025",
+      "description": "LiquidUniv3EthDevBuy -- Extension for dev buy through Uniswap V3 pools (legacy). Swaps ETH for tokens at deployment time via V3 routing.",
+      "sdkConstant": "ADDRESSES.UNIV3_ETH_DEV_BUY"
+    },
+    "PRESALE_ETH_TO_CREATOR": {
+      "address": "0x3bca63EcB49d5f917092d10fA879Fdb422740163",
+      "description": "LiquidPresaleEthToCreator -- Presale extension where participants send ETH and receive tokens. The ETH is forwarded directly to the token creator.",
+      "sdkConstant": "ADDRESSES.PRESALE_ETH_TO_CREATOR"
+    },
+    "PRESALE_ALLOWLIST": {
+      "address": "0xCBb4ccC4B94E23233c14759f4F9629F7dD01f10B",
+      "description": "LiquidPresaleAllowlist -- Allowlist-gated presale extension. Only addresses on the allowlist can participate in the presale.",
+      "sdkConstant": "ADDRESSES.PRESALE_ALLOWLIST"
+    }
+  },
+  "external": {
+    "POOL_MANAGER": {
+      "address": "0x498581fF718922c3f8e6A244956aF099B2652b2b",
+      "description": "Uniswap V4 PoolManager -- Core contract that manages all V4 pools. All swaps and liquidity operations go through this singleton.",
+      "sdkConstant": "EXTERNAL.POOL_MANAGER"
+    },
+    "WETH": {
+      "address": "0x4200000000000000000000000000000000000006",
+      "description": "Wrapped ETH on Base -- The paired token for all Liquid Protocol pools. Always currency0 in pool keys (numerically lower than token addresses).",
+      "sdkConstant": "EXTERNAL.WETH"
+    },
+    "UNIVERSAL_ROUTER": {
+      "address": "0x6fF5693b99212Da76ad316178A184AB56D299b43",
+      "description": "Uniswap Universal Router -- Entry point for swaps via Uniswap V4. Handles WRAP_ETH, V4_SWAP, and UNWRAP_WETH commands.",
+      "sdkConstant": "EXTERNAL.UNIVERSAL_ROUTER"
+    },
+    "PERMIT2": {
+      "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+      "description": "Uniswap Permit2 -- Token approval management used for sell-side swaps (token-to-ETH). Requires token.approve(PERMIT2) + Permit2.approve(token, UNIVERSAL_ROUTER).",
+      "sdkConstant": "EXTERNAL.PERMIT2"
+    }
+  },
+  "adminSafe": {
+    "address": "0x872c561f699B42977c093F0eD8b4C9a431280c6c",
+    "description": "Gnosis Safe multisig that owns the Factory and Pool Extension Allowlist. Required for enabling new hooks, lockers, extensions, and MEV modules."
+  }
+}

@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Liquid Protocol Configuration Schemas",
+  "description": "JSON Schemas for PoolConfig, LockerConfig, MevModuleConfig, and ExtensionConfig -- the on-chain struct types used in the DeploymentConfig.",
+  "definitions": {
+    "PoolConfig": {
+      "title": "PoolConfig",
+      "description": "Uniswap V4 pool configuration. Mirrors the on-chain PoolConfig struct in Liquid.sol.",
+      "type": "object",
+      "required": ["hook", "pairedToken", "tickIfToken0IsLiquid", "tickSpacing", "poolData"],
+      "properties": {
+        "hook": {
+          "type": "string",
+          "format": "address",
+          "description": "Fee hook contract address. Must be an enabled hook in the factory. Options: HOOK_STATIC_FEE_V2 (0x9811f10Cd549c754Fa9E5785989c422A762c28cc) for fixed fees, or HOOK_DYNAMIC_FEE_V2 (0x80E2F7dC8C2C880BbC4BDF80A5Fb0eB8B1DB68CC) for volatility-responsive fees."
+        },
+        "pairedToken": {
+          "type": "string",
+          "format": "address",
+          "description": "Quote token for the pool. Always WETH (0x4200000000000000000000000000000000000006) on Base. This becomes currency0 in the Uniswap V4 pool key because WETH is numerically lower than deployed token addresses."
+        },
+        "tickIfToken0IsLiquid": {
+          "type": "integer",
+          "description": "Starting tick that determines the initial token price and market cap. Since WETH is always token0, this tick represents the price of WETH in terms of the liquid token. Typical values: -230400 (~10 ETH / ~$20K market cap), -200200 (~200 ETH)."
+        },
+        "tickSpacing": {
+          "type": "integer",
+          "default": 200,
+          "description": "Uniswap V4 tick spacing. All position ticks must be divisible by this value. Default: 200."
+        },
+        "poolData": {
+          "type": "string",
+          "format": "hex",
+          "description": "ABI-encoded hook initialization data. Uses two-layer encoding: inner (fee params) wrapped in outer (PoolInitializationData with optional pool extension). For static fees: encodeStaticFeePoolData(liquidFeeBps, pairedFeeBps). For dynamic fees: encodeDynamicFeePoolData(config)."
+        }
+      }
+    },
+    "LockerConfig": {
+      "title": "LockerConfig",
+      "description": "LP locker configuration. Controls how liquidity is locked and how fees are distributed.",
+      "type": "object",
+      "required": ["locker", "rewardAdmins", "rewardRecipients", "rewardBps", "tickLower", "tickUpper", "positionBps", "lockerData"],
+      "properties": {
+        "locker": {
+          "type": "string",
+          "format": "address",
+          "description": "LP locker contract address. Default: LP_LOCKER_FEE_CONVERSION (0x77247fCD1d5e34A3703AcA898A591Dc7422435f3). Locks LP permanently and converts fees to preferred token before distributing."
+        },
+        "rewardAdmins": {
+          "type": "array",
+          "items": { "type": "string", "format": "address" },
+          "description": "Admin address for each reward recipient slot. Admin at index N can update the recipient at index N. Cannot be changed after deployment."
+        },
+        "rewardRecipients": {
+          "type": "array",
+          "items": { "type": "string", "format": "address" },
+          "description": "Fee reward recipient addresses. Can be updated by the corresponding admin. Receive LP fees according to rewardBps split."
+        },
+        "rewardBps": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0, "maximum": 10000 },
+          "description": "Basis points (1/10000) for each reward recipient. Must sum to exactly 10000. IMMUTABLE after deployment -- only recipient addresses can change, not splits."
+        },
+        "tickLower": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "description": "Lower tick bounds for LP positions. Each defines where a liquidity tranche starts. Must be divisible by tickSpacing."
+        },
+        "tickUpper": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "description": "Upper tick bounds for LP positions. Each defines where a liquidity tranche ends. Must be divisible by tickSpacing."
+        },
+        "positionBps": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0, "maximum": 10000 },
+          "description": "Supply allocation per position in basis points. Must sum to 10000 (100% of pool supply, which is total supply minus extension allocations). Max 7 positions."
+        },
+        "lockerData": {
+          "type": "string",
+          "format": "hex",
+          "description": "ABI-encoded locker init data. For LP_LOCKER_FEE_CONVERSION: encode a FeeIn[] array with one entry per reward recipient. Values: 0 = Both (no conversion), 1 = Paired (convert to ETH), 2 = Liquid (convert to token). Use encodeFeeConversionLockerData()."
+        }
+      }
+    },
+    "MevModuleConfig": {
+      "title": "MevModuleConfig",
+      "description": "MEV protection module configuration.",
+      "type": "object",
+      "required": ["mevModule", "mevModuleData"],
+      "properties": {
+        "mevModule": {
+          "type": "string",
+          "format": "address",
+          "description": "MEV module contract address. Options: SNIPER_AUCTION_V2 (0x187e8627c02c58F31831953C1268e157d3BfCefd) for auction-based protection, or MEV_DESCENDING_FEES (0x8D6B080e48756A99F3893491D556B5d6907b6910) for time-based fee decay."
+        },
+        "mevModuleData": {
+          "type": "string",
+          "format": "hex",
+          "description": "ABI-encoded MEV module init data. For Sniper Auction: encode { startingFee: uint24, endingFee: uint24, secondsToDecay: uint256 } where fees are in uniBps (800000 = 80%). Use encodeSniperAuctionData()."
+        }
+      }
+    },
+    "ExtensionConfig": {
+      "title": "ExtensionConfig",
+      "description": "Configuration for a token extension (vault, airdrop, dev buy, presale).",
+      "type": "object",
+      "required": ["extension", "msgValue", "extensionBps", "extensionData"],
+      "properties": {
+        "extension": {
+          "type": "string",
+          "format": "address",
+          "description": "Extension contract address. Must be enabled in the Pool Extension Allowlist."
+        },
+        "msgValue": {
+          "type": "string",
+          "description": "ETH (in wei) to send as msg.value when calling the extension. Only non-zero for dev buy (ethAmount) and presale extensions."
+        },
+        "extensionBps": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9000,
+          "description": "Basis points of total token supply (100B) to allocate to this extension. Total across all extensions must not exceed 9000 (90%)."
+        },
+        "extensionData": {
+          "type": "string",
+          "format": "hex",
+          "description": "ABI-encoded extension-specific init data. Content varies by extension type."
+        }
+      }
+    },
+    "FeePreference": {
+      "title": "FeePreference",
+      "description": "Fee conversion preference for LP_LOCKER_FEE_CONVERSION. One value per reward recipient.",
+      "type": "integer",
+      "enum": [0, 1, 2],
+      "enumDescriptions": {
+        "0": "Both -- No conversion, fees paid in whichever token accrues from LP",
+        "1": "Paired -- Convert all fees to paired token (WETH/ETH). This is the default.",
+        "2": "Liquid -- Convert all fees to the liquid token"
+      }
+    },
+    "PoolDynamicConfigVars": {
+      "title": "PoolDynamicConfigVars",
+      "description": "Dynamic fee pool configuration. Returned by sdk.getPoolConfig(poolId). Only meaningful for pools using HOOK_DYNAMIC_FEE_V2.",
+      "type": "object",
+      "properties": {
+        "baseFee": { "type": "integer", "description": "Minimum fee in BPS (e.g., 100 = 1%)" },
+        "maxLpFee": { "type": "integer", "description": "Maximum LP fee in BPS" },
+        "referenceTickFilterPeriod": { "type": "string", "description": "Filter period in seconds (bigint)" },
+        "resetPeriod": { "type": "string", "description": "Reset period in seconds (bigint)" },
+        "resetTickFilter": { "type": "integer", "description": "Reset tick filter threshold (tick units)" },
+        "feeControlNumerator": { "type": "string", "description": "Scaling constant for fee calculation (bigint)" },
+        "decayFilterBps": { "type": "integer", "description": "Decay filter in BPS" }
+      }
+    },
+    "PoolDynamicFeeVars": {
+      "title": "PoolDynamicFeeVars",
+      "description": "Current dynamic fee state. Returned by sdk.getPoolFeeState(poolId).",
+      "type": "object",
+      "properties": {
+        "referenceTick": { "type": "integer", "description": "Current reference tick for fee calculation" },
+        "resetTick": { "type": "integer", "description": "Tick at last reset" },
+        "resetTickTimestamp": { "type": "string", "description": "Unix timestamp of last reset (bigint)" },
+        "lastSwapTimestamp": { "type": "string", "description": "Unix timestamp of last swap (bigint)" },
+        "appliedVR": { "type": "integer", "description": "Applied volatility ratio" },
+        "prevVA": { "type": "integer", "description": "Previous volatility accumulator" }
+      }
+    }
+  }
+}
