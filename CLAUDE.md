@@ -209,13 +209,6 @@ await sdk.getAuctionGasPriceForBid(gasPeg, amount)   // → bigint
 await sdk.bidInAuction(params, maxFeePerGas)         // → { txHash } (write)
 ```
 
-### MEV Protection
-
-```typescript
-await sdk.getMevBlockDelay()                         // → bigint
-await sdk.getPoolUnlockTime(poolId)                  // → bigint (unix timestamp)
-```
-
 ### Factory Status
 
 ```typescript

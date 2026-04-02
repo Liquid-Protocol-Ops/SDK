@@ -30,7 +30,7 @@ console.log(result.tokenAddress);
 Liquid Protocol deploys ERC-20 tokens on Base (chain 8453) with:
 - Uniswap V4 liquidity pools (created automatically)
 - Locked LP with configurable reward splits
-- MEV protection (sniper auction or block delay)
+- MEV protection (sniper auction with descending fees)
 - Optional extensions: dev buy, vault lockup/vesting, merkle airdrops
 
 Every token gets 100 billion supply (18 decimals), a Uniswap V4 pool, and locked liquidity.
@@ -85,10 +85,6 @@ Every token gets 100 billion supply (18 decimals), a Uniswap V4 pool, and locked
 - `sdk.getAuctionDecayStartTime(poolId)` — When fee decay started
 - `sdk.getAuctionMaxRounds()` — Max auction rounds
 - `sdk.getAuctionGasPriceForBid(gasPeg, bidAmount)` — Calculate gas price for bid
-
-### MEV Protection
-- `sdk.getMevBlockDelay()` — Configured block delay
-- `sdk.getPoolUnlockTime(poolId)` — When MEV lock expires (unix timestamp)
 
 ### Factory & Allowlist
 - `sdk.isFactoryDeprecated()` — Is factory still active

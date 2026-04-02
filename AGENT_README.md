@@ -161,7 +161,7 @@ const txHash = await sdk.collectRewardsWithoutUnlock(tokenAddress);
 await publicClient.waitForTransactionReceipt({ hash: txHash });
 ```
 
-**Important:** After deployment, the pool is locked for a MEV block delay. `collectRewardsWithoutUnlock` may revert with `ManagerLocked` if called too soon. Use `getPoolUnlockTime` to check.
+**Important:** After deployment, the sniper auction MEV module may block early reward collection. If `collectRewardsWithoutUnlock` reverts with `ManagerLocked`, wait for the auction period to end.
 
 #### `sdk.updateRewardRecipient(tokenAddress, rewardIndex, newRecipient)` — Change reward recipient
 
@@ -452,25 +452,6 @@ const result = await sdk.bidInAuction({
 ```
 
 **Important:** The bid is valid only at `nextAuctionBlock`. Submit when `currentBlock === nextAuctionBlock - 1`. The `amountIn` is pulled from your WETH balance (separate from the bid's `msg.value`). Auction runs 5 rounds, every 2 blocks, starting 2 blocks after deployment.
-
----
-
-### MEV Protection
-
-#### `sdk.getMevBlockDelay()` — Get configured block delay
-
-```typescript
-const delay = await sdk.getMevBlockDelay();
-// delay: bigint — number of blocks
-```
-
-#### `sdk.getPoolUnlockTime(poolId)` — When does MEV lock expire
-
-```typescript
-const unlockTime = await sdk.getPoolUnlockTime(poolId);
-// unlockTime: bigint — unix timestamp
-// If Date.now()/1000 < unlockTime, pool is still locked
-```
 
 ---
 
