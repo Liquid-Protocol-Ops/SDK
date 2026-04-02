@@ -35,7 +35,7 @@ No API keys, no backend, no database. The SDK talks directly to Base mainnet con
 Liquid Protocol deploys ERC-20 tokens on Base with:
 - Uniswap V4 liquidity pools (automatic)
 - LP fee collection and reward distribution
-- MEV protection via block delay
+- MEV protection via sniper auction
 - Optional extensions: dev buy, vault lockup/vesting, airdrops
 
 Every token gets 100 billion supply (18 decimals), a Uniswap V4 pool, and locked liquidity with configurable reward splits.

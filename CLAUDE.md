@@ -6,7 +6,7 @@
 
 ## What Is This Project?
 
-**liquid-sdk** (`v1.5.1`) is a TypeScript SDK for the Liquid Protocol token launcher on Base (chain ID 8453). It deploys ERC-20 tokens with permanent, locked Uniswap V4 liquidity pools and provides read/write helpers for pool state, fee claiming, vaults, airdrops, auctions, and MEV bidding.
+**liquid-sdk** (`v1.6.3`) is a TypeScript SDK for the Liquid Protocol token launcher on Base (chain ID 8453). It deploys ERC-20 tokens with permanent, locked Uniswap V4 liquidity pools and provides read/write helpers for pool state, fee claiming, vaults, airdrops, auctions, and MEV bidding.
 
 ---
 

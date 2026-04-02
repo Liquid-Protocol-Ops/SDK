@@ -87,13 +87,13 @@ When `deployToken()` is called with minimal params, the SDK fills these defaults
 
 | Parameter | Default | Notes |
 |-----------|---------|-------|
-| `hook` | HookDynamicFeeV2 | Tick-based dynamic fees |
+| `hook` | HookStaticFeeV2 | 1% buy + 1% sell static fees |
 | `pairedToken` | WETH | `0x4200...0006` on Base |
-| `tickIfToken0IsLiquid` | -198720 | ~$0.001 WETH/token initial price |
-| `tickSpacing` | 60 | Standard Uniswap v4 spacing |
-| `locker` | LP_LOCKER | Standard LP locker |
-| `mevModule` | MEV_BLOCK_DELAY | Block-based MEV protection |
-| `tickLower/tickUpper` | [-887220, 887220] | Full-range position |
-| `positionBps` | [10000] | Single position, 100% |
+| `tickIfToken0IsLiquid` | -230400 | ~10 ETH / ~$20K market cap |
+| `tickSpacing` | 200 | Uniswap v4 tick spacing |
+| `locker` | LP_LOCKER_FEE_CONVERSION | LP locker with fee conversion to ETH |
+| `mevModule` | SNIPER_AUCTION_V2 | 80%→40% over 20s sniper auction |
+| `tickLower/tickUpper` | 5-position Liquid layout | See POOL_POSITIONS.Liquid |
+| `positionBps` | [1000, 5000, 1500, 2000, 500] | 5-position Liquid layout |
 | `rewardBps` | [10000] | All rewards to caller |
 | `salt` | keccak256(name + symbol + timestamp) | Random per deployment |
