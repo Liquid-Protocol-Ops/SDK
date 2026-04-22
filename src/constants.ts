@@ -139,7 +139,7 @@ export const POOL_POSITIONS = {
  */
 export const DEFAULTS = {
   HOOK: ADDRESSES.HOOK_STATIC_FEE_V2,
-  /** LP Locker with fee conversion (converts fees to ETH before distributing) */
+  /** LP Locker with fee conversion (converts fees to WETH before distributing) */
   LOCKER: ADDRESSES.LP_LOCKER_FEE_CONVERSION,
   TICK_SPACING: 200,
   TICK_IF_TOKEN0_IS_LIQUID: -230400,

@@ -6,6 +6,8 @@ export { LiquidSniperAuctionV2Abi } from "./LiquidSniperAuctionV2";
 export { LiquidSniperUtilV2Abi } from "./LiquidSniperUtilV2";
 export { LiquidAirdropV2Abi } from "./LiquidAirdropV2";
 export { LiquidPoolExtensionAllowlistAbi } from "./LiquidPoolExtensionAllowlist";
+export { LiquidMevDescendingFeesAbi } from "./LiquidMevDescendingFees";
+/** @deprecated Use LiquidMevDescendingFeesAbi instead */
 export { LiquidMevBlockDelayAbi } from "./LiquidMevBlockDelay";
 export { LiquidLpLockerAbi } from "./LiquidLpLocker";
 export { LiquidTokenAbi } from "./LiquidToken";

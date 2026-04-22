@@ -26,7 +26,7 @@ import { LiquidSniperAuctionV2Abi } from "./abis/LiquidSniperAuctionV2";
 import { LiquidSniperUtilV2Abi } from "./abis/LiquidSniperUtilV2";
 import { LiquidAirdropV2Abi } from "./abis/LiquidAirdropV2";
 import { LiquidPoolExtensionAllowlistAbi } from "./abis/LiquidPoolExtensionAllowlist";
-import { LiquidMevBlockDelayAbi } from "./abis/LiquidMevBlockDelay";
+import { LiquidMevDescendingFeesAbi } from "./abis/LiquidMevDescendingFees";
 import { LiquidLpLockerAbi } from "./abis/LiquidLpLocker";
 import { LiquidTokenAbi } from "./abis/LiquidToken";
 import { ERC20Abi } from "./abis/ERC20";
@@ -37,6 +37,8 @@ import type {
   DeployTokenParams,
   DeployTokenResult,
   DevBuyParams,
+  VaultExtensionParams,
+  AirdropExtensionParams,
   DeploymentInfo,
   DeploymentConfig,
   ExtensionConfig,
@@ -113,6 +115,139 @@ export class LiquidSDK {
       extension: ADDRESSES.UNIV4_ETH_DEV_BUY,
       msgValue: devBuy.ethAmount,
       extensionBps: 0,
+      extensionData,
+    };
+  }
+
+  /**
+   * Build a vault extension config for token deployment.
+   *
+   * Locks a percentage of the token supply with a lockup period
+   * followed by optional linear vesting.
+   *
+   * @param vault - Vault parameters
+   * @returns ExtensionConfig to include in `deployToken({ extensions })`
+   *
+   * @example
+   * ```typescript
+   * const vaultExt = sdk.buildVaultExtension({
+   *   admin: account.address,
+   *   allocationBps: 2000,       // 20% of supply
+   *   lockupDuration: 2592000,   // 30 days in seconds
+   *   vestingDuration: 7776000,  // 90 days linear vesting after lockup
+   * });
+   * const result = await sdk.deployToken({
+   *   name: "My Token", symbol: "MTK",
+   *   extensions: [vaultExt],
+   * });
+   * ```
+   */
+  buildVaultExtension(vault: VaultExtensionParams): ExtensionConfig {
+    // Validate constraints
+    const MIN_LOCKUP = 604_800; // 7 days (from contract)
+    const MAX_BPS = 9_000;      // 90% max allocation
+
+    if (vault.allocationBps < 1 || vault.allocationBps > MAX_BPS) {
+      throw new Error(`Vault allocationBps must be 1–${MAX_BPS} (0.01%–90%). Got ${vault.allocationBps}.`);
+    }
+    if (vault.lockupDuration < MIN_LOCKUP) {
+      throw new Error(`Vault lockupDuration must be ≥ ${MIN_LOCKUP} seconds (7 days). Got ${vault.lockupDuration}.`);
+    }
+    if (vault.vestingDuration !== undefined && vault.vestingDuration < 0) {
+      throw new Error("Vault vestingDuration cannot be negative.");
+    }
+
+    const extensionData = encodeAbiParameters(
+      [
+        { type: "address" },  // admin
+        { type: "uint256" },  // lockupDuration
+        { type: "uint256" },  // vestingDuration
+      ],
+      [
+        vault.admin,
+        BigInt(vault.lockupDuration),
+        BigInt(vault.vestingDuration ?? 0),
+      ]
+    );
+
+    return {
+      extension: ADDRESSES.VAULT,
+      msgValue: 0n,
+      extensionBps: vault.allocationBps,
+      extensionData,
+    };
+  }
+
+  // ── Airdrop Extension ──────────────────────────────────────────
+
+  /**
+   * Build an ExtensionConfig that reserves a percentage of supply into
+   * the LiquidAirdropV2 contract for merkle-tree-based distribution.
+   *
+   * The airdrop contract expects `AirdropV2ExtensionData`:
+   *   { address admin, bytes32 merkleRoot, uint256 lockupDuration, uint256 vestingDuration }
+   *
+   * Leaf encoding used by LiquidAirdropV2.claim (note: **double hashed**
+   * — OZ's standard 2nd-preimage-resistant pattern):
+   *   leaf = keccak256(bytes.concat(keccak256(abi.encode(recipient, allocatedAmount))))
+   *
+   * @example
+   * ```typescript
+   * const airdropExt = sdk.buildAirdropExtension({
+   *   admin: account.address,
+   *   merkleRoot: "0x…",
+   *   allocationBps: 2000,          // 20%
+   *   lockupDuration: 86400,        // 1 day (minimum)
+   *   vestingDuration: 0,           // instant claim after lockup
+   * });
+   * ```
+   */
+  buildAirdropExtension(airdrop: AirdropExtensionParams): ExtensionConfig {
+    const MIN_LOCKUP = 86_400; // 1 day (from contract MIN_LOCKUP_DURATION)
+    const MAX_BPS = 9_000;
+
+    if (airdrop.allocationBps < 1 || airdrop.allocationBps > MAX_BPS) {
+      throw new Error(
+        `Airdrop allocationBps must be 1–${MAX_BPS} (0.01%–90%). Got ${airdrop.allocationBps}.`,
+      );
+    }
+    if (airdrop.lockupDuration < MIN_LOCKUP) {
+      throw new Error(
+        `Airdrop lockupDuration must be ≥ ${MIN_LOCKUP} seconds (1 day). Got ${airdrop.lockupDuration}.`,
+      );
+    }
+    if (airdrop.vestingDuration !== undefined && airdrop.vestingDuration < 0) {
+      throw new Error("Airdrop vestingDuration cannot be negative.");
+    }
+
+    // Wrapped in a single tuple arg to match the contract's
+    // `abi.decode(extensionData, (AirdropV2ExtensionData))` syntax.
+    const extensionData = encodeAbiParameters(
+      [
+        {
+          type: "tuple",
+          components: [
+            { type: "address", name: "admin" },
+            { type: "bytes32", name: "merkleRoot" },
+            { type: "uint256", name: "lockupDuration" },
+            { type: "uint256", name: "vestingDuration" },
+          ],
+        },
+      ],
+      [
+        {
+          admin: airdrop.admin,
+          merkleRoot: airdrop.merkleRoot,
+          lockupDuration: BigInt(airdrop.lockupDuration),
+          vestingDuration: BigInt(airdrop.vestingDuration ?? 0),
+        },
+      ],
+    );
+
+    return {
+      extension: ADDRESSES.AIRDROP_V2,
+      msgValue: 0n,
+      extensionBps: airdrop.allocationBps,
       extensionData,
     };
   }
@@ -287,7 +422,7 @@ export class LiquidSDK {
         const rewardBps = params.rewardBps ?? [10000];
 
         // Auto-encode lockerData for fee conversion locker:
-        // one FeePreference.Paired entry per reward recipient (fees → ETH)
+        // one FeePreference.Paired entry per reward recipient (fees → WETH)
         let lockerData = params.lockerData ?? "0x";
         if (lockerData === "0x" && getAddress(locker) === getAddress(ADDRESSES.LP_LOCKER_FEE_CONVERSION)) {
           lockerData = encodeFeeConversionLockerData(
@@ -341,12 +476,32 @@ export class LiquidSDK {
       0n
     );
 
+    // Deploy txs are complex (CREATE2 + pool init + LP lock + optional
+    // extensions like AirdropV2) and real gas cost drifts as the factory
+    // evolves. Estimate + 20% buffer instead of a hard-coded limit.
+    // Fallback to 6M if estimation fails (e.g., RPC quirk on some nodes).
+    let gas: bigint;
+    try {
+      const estimated = await this.publicClient.estimateContractGas({
+        address: ADDRESSES.FACTORY,
+        abi: LiquidFactoryAbi,
+        functionName: "deployToken",
+        args: [deploymentConfig],
+        value: msgValue,
+        account: this.walletClient.account,
+      });
+      gas = (estimated * 120n) / 100n;
+    } catch {
+      gas = 6_000_000n;
+    }
+
     const txHash = await this.walletClient.writeContract({
       address: ADDRESSES.FACTORY,
       abi: LiquidFactoryAbi,
       functionName: "deployToken",
       args: [deploymentConfig],
       value: msgValue,
+      gas,
       chain: base,
       account: this.walletClient.account,
     });
@@ -537,31 +692,47 @@ export class LiquidSDK {
 
   // ── Fee Claims ────────────────────────────────────────────────────
 
+  /**
+   * Get uncollected fees for a fee owner.
+   * @param feeOwner - Address that receives fees (reward recipient)
+   * @param feeToken - The token fees are denominated in. Defaults to WETH
+   *   (correct for all pools using LP_LOCKER_FEE_CONVERSION).
+   */
   async getAvailableFees(
     feeOwner: Address,
-    tokenAddress: Address
+    feeToken: Address = EXTERNAL.WETH
   ): Promise<bigint> {
     return (await this.publicClient.readContract({
       address: ADDRESSES.FEE_LOCKER,
       abi: LiquidFeeLockerAbi,
       functionName: "availableFees",
-      args: [feeOwner, tokenAddress],
+      args: [feeOwner, feeToken],
     })) as bigint;
   }
 
+  /**
+   * Get collected, claimable fees for a fee owner.
+   * @param feeOwner - Address that receives fees (reward recipient)
+   * @param feeToken - The token fees are denominated in. Defaults to WETH.
+   */
   async getFeesToClaim(
     feeOwner: Address,
-    tokenAddress: Address
+    feeToken: Address = EXTERNAL.WETH
   ): Promise<bigint> {
     return (await this.publicClient.readContract({
       address: ADDRESSES.FEE_LOCKER,
       abi: LiquidFeeLockerAbi,
       functionName: "feesToClaim",
-      args: [feeOwner, tokenAddress],
+      args: [feeOwner, feeToken],
     })) as bigint;
   }
 
-  async claimFees(feeOwner: Address, tokenAddress: Address): Promise<Hash> {
+  /**
+   * Claim all accumulated fees for a fee owner.
+   * @param feeOwner - Address that receives fees (reward recipient)
+   * @param feeToken - The token fees are denominated in. Defaults to WETH.
+   */
+  async claimFees(feeOwner: Address, feeToken: Address = EXTERNAL.WETH): Promise<Hash> {
     if (!this.walletClient?.account) {
       throw new Error("walletClient with account required for claimFees");
     }
@@ -570,7 +741,7 @@ export class LiquidSDK {
       address: ADDRESSES.FEE_LOCKER,
       abi: LiquidFeeLockerAbi,
       functionName: "claim",
-      args: [feeOwner, tokenAddress],
+      args: [feeOwner, feeToken],
       chain: base,
       account: this.walletClient.account,
     });
@@ -1025,20 +1196,25 @@ export class LiquidSDK {
     })) as boolean;
   }
 
-  // ── MEV Block Delay ─────────────────────────────────────────────────
+  // ── MEV Descending Fees ─────────────────────────────────────────────
 
-  async getMevBlockDelay(): Promise<bigint> {
+  async getMevDescendingFeesBlockDelay(): Promise<bigint> {
     return (await this.publicClient.readContract({
       address: ADDRESSES.MEV_DESCENDING_FEES,
-      abi: LiquidMevBlockDelayAbi,
+      abi: LiquidMevDescendingFeesAbi,
       functionName: "blockDelay",
     })) as bigint;
+  }
+
+  /** @deprecated Use getMevDescendingFeesBlockDelay() */
+  async getMevBlockDelay(): Promise<bigint> {
+    return this.getMevDescendingFeesBlockDelay();
   }
 
   async getPoolUnlockTime(poolId: Hex): Promise<bigint> {
     return (await this.publicClient.readContract({
       address: ADDRESSES.MEV_DESCENDING_FEES,
-      abi: LiquidMevBlockDelayAbi,
+      abi: LiquidMevDescendingFeesAbi,
       functionName: "poolUnlockTime",
       args: [poolId],
     })) as bigint;

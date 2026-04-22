@@ -2,6 +2,18 @@
 
 All notable changes to `liquid-sdk` will be documented in this file.
 
+## [1.7.3] - 2026-04-22
+
+### Added
+- `buildAirdropExtension({ admin, merkleRoot, allocationBps, lockupDuration, vestingDuration })` — creates a `LiquidAirdropV2` extension config for use in `deployToken({ extensions: [...] })`. Double-hashed leaf format compatible with OpenZeppelin `MerkleProof`. Contract minimums enforced (1-day lockup, ≤90% allocation).
+
+### Fixed
+- `deployToken` no longer uses a hard-coded `gas: 5_000_000n` — real mainnet deploys currently require ~5.04M gas. Now uses `estimateContractGas * 1.2` with a 6M fallback so the SDK auto-adjusts as the factory evolves. Previous versions could OOG on mainnet.
+
+### Verified
+- End-to-end airdrop flow fork-tested against Base mainnet (real `LiquidAirdropV2` at `0x1423974d48f525462f1c087cBFdCC20BDBc33CdD`): deploy → state register → claim with single-leaf proof all confirmed.
+- Mainnet dry-run deploy confirmed on-chain state encoding: [basescan tx](https://basescan.org/tx/0x1807c1e3eb92ccb0c32779855cd35d5581e6143d4232f4ab66d39517ee86e3d0).
+
 ## [1.2.0] - 2025-03-10
 
 ### Added

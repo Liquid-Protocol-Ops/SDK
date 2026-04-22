@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { LiquidSDK } from "../../src/client";
+import { EXTERNAL } from "../../src/constants";
 
 function createMockPublicClient() {
   return {
@@ -46,7 +47,7 @@ describe("Write methods throw without walletClient", () => {
   });
 
   it("claimFees throws 'walletClient with account required'", async () => {
-    await expect(sdk.claimFees(addr, addr)).rejects.toThrow(
+    await expect(sdk.claimFees(addr)).rejects.toThrow(
       "walletClient with account required for claimFees"
     );
   });
@@ -111,6 +112,76 @@ describe("updateImage with walletClient", () => {
         address: addr,
         functionName: "updateImage",
         args: ["https://new-image.png"],
+      })
+    );
+  });
+});
+
+describe("Fee helpers", () => {
+  const owner = "0x0000000000000000000000000000000000000001" as const;
+  const alternateFeeToken = "0x0000000000000000000000000000000000000002" as const;
+
+  it("defaults getAvailableFees to WETH", async () => {
+    const publicClient = createMockPublicClient();
+    publicClient.readContract.mockResolvedValue(123n);
+    const sdk = new LiquidSDK({ publicClient });
+
+    const result = await sdk.getAvailableFees(owner);
+
+    expect(result).toBe(123n);
+    expect(publicClient.readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        functionName: "availableFees",
+        args: [owner, EXTERNAL.WETH],
+      })
+    );
+  });
+
+  it("defaults getFeesToClaim to WETH", async () => {
+    const publicClient = createMockPublicClient();
+    publicClient.readContract.mockResolvedValue(456n);
+    const sdk = new LiquidSDK({ publicClient });
+
+    const result = await sdk.getFeesToClaim(owner);
+
+    expect(result).toBe(456n);
+    expect(publicClient.readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        functionName: "feesToClaim",
+        args: [owner, EXTERNAL.WETH],
+      })
+    );
+  });
+
+  it("defaults claimFees to WETH", async () => {
+    const publicClient = createMockPublicClient();
+    const walletClient = createMockWalletClient();
+    walletClient.writeContract.mockResolvedValue("0xmockhash");
+    const sdk = new LiquidSDK({ publicClient, walletClient });
+
+    const result = await sdk.claimFees(owner);
+
+    expect(result).toBe("0xmockhash");
+    expect(walletClient.writeContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        functionName: "claim",
+        args: [owner, EXTERNAL.WETH],
+      })
+    );
+  });
+
+  it("still allows overriding the fee token explicitly", async () => {
+    const publicClient = createMockPublicClient();
+    publicClient.readContract.mockResolvedValue(789n);
+    const sdk = new LiquidSDK({ publicClient });
+
+    const result = await sdk.getFeesToClaim(owner, alternateFeeToken);
+
+    expect(result).toBe(789n);
+    expect(publicClient.readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        functionName: "feesToClaim",
+        args: [owner, alternateFeeToken],
       })
     );
   });

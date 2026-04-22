@@ -221,7 +221,7 @@ export enum FeePreference {
  *
  * @example
  * ```ts
- * // Single recipient, fees converted to ETH
+ * // Single recipient, fees converted to WETH
  * const lockerData = encodeFeeConversionLockerData([FeePreference.Paired]);
  *
  * // Two recipients: first gets ETH, second gets the token

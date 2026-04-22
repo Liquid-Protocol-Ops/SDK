@@ -61,6 +61,37 @@ export interface DevBuyParams {
   recipient: Address;
 }
 
+// ── Vault types ─────────────────────────────────────────────────────
+
+export interface VaultExtensionParams {
+  /** Address that can claim vested tokens */
+  admin: Address;
+  /** Percentage of supply to lock, in BPS (1–9000 = 0.01%–90%) */
+  allocationBps: number;
+  /** Lockup duration in seconds (minimum 604800 = 7 days). Tokens are fully locked during this period. */
+  lockupDuration: number;
+  /** Vesting duration in seconds after lockup ends (0 = no vesting, tokens unlock all at once) */
+  vestingDuration?: number;
+}
+
+// ── Airdrop types ────────────────────────────────────────────────────
+
+export interface AirdropExtensionParams {
+  /** Address allowed to `updateAdmin`, `updateMerkleRoot` (under conditions),
+   *  and `adminClaim` the remainder after claim expiration. */
+  admin: Address;
+  /** Merkle root over leaves `keccak256(bytes.concat(keccak256(abi.encode(
+   *  recipient, allocatedAmount))))`. Double-hashed per OZ convention. */
+  merkleRoot: Hex;
+  /** Percentage of supply to reserve for the airdrop, in BPS (1–9000). */
+  allocationBps: number;
+  /** Lockup in seconds before any recipient can claim. Min 86400 (1 day). */
+  lockupDuration: number;
+  /** Linear vesting after lockup. 0 = instant claim of full entitlement at
+   *  lockup end. */
+  vestingDuration?: number;
+}
+
 // ── SDK-level simplified params ──────────────────────────────────────
 
 export interface DeployTokenParams {

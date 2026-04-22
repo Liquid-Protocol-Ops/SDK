@@ -1,6 +1,6 @@
 {
   "name": "liquid-sdk",
-  "version": "1.6.3",
+  "version": "1.7.3",
   "description": "TypeScript SDK to deploy ERC-20 tokens with Uniswap V4 liquidity on Base — zero API keys, one dependency (viem)",
   "author": "Liquid Protocol",
   "homepage": "https://github.com/Liquid-Protocol-Ops/SDK#readme",
@@ -39,7 +39,7 @@
     "viem": "^2.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.11.0",
+    "@types/node": "^25.5.0",
     "@vitest/coverage-v8": "^4.0.18",
     "tsup": "^8.0.0",
     "typescript": "^5.3.0",
