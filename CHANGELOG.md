@@ -2,6 +2,11 @@
 
 All notable changes to `liquid-sdk` will be documented in this file.
 
+## [1.7.4] - 2026-04-23
+
+### Fixed
+- `deployToken` gas estimation no longer silently swallows on-chain revert errors. Previously a failing `eth_estimateGas` (e.g., insufficient msg.value, paused factory, pre-flight check revert) would be caught and replaced with a 6M fallback, causing the tx to be broadcast and burn real gas for nothing. Now a revert-shaped error bubbles to the caller; only transport-level failures fall back. Non-revert fallbacks log a warning via `console.warn`.
+
 ## [1.7.3] - 2026-04-22
 
 ### Added

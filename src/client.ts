@@ -479,7 +479,12 @@ export class LiquidSDK {
     // Deploy txs are complex (CREATE2 + pool init + LP lock + optional
     // extensions like AirdropV2) and real gas cost drifts as the factory
     // evolves. Estimate + 20% buffer instead of a hard-coded limit.
-    // Fallback to 6M if estimation fails (e.g., RPC quirk on some nodes).
+    //
+    // If estimation fails with a revert reason (the contract would reject
+    // the tx), bubble the error up — the previous silent fallback to 6M
+    // would then fire the tx on-chain and burn real gas. Only fall back
+    // to the static limit for transport-level errors (RPC timeout, node
+    // quirks with eth_estimateGas).
     let gas: bigint;
     try {
       const estimated = await this.publicClient.estimateContractGas({
@@ -491,7 +496,26 @@ export class LiquidSDK {
         account: this.walletClient.account,
       });
       gas = (estimated * 120n) / 100n;
-    } catch {
+    } catch (err) {
+      // Treat any error that looks like an on-chain revert as fatal
+      // (don't paper over it by sending the tx anyway). Anything else —
+      // RPC transport failures, method-not-supported — falls back to a
+      // safe high limit.
+      const e = err as { name?: string; shortMessage?: string; cause?: unknown };
+      const looksLikeRevert =
+        e?.name === "ContractFunctionExecutionError" ||
+        e?.name === "CallExecutionError" ||
+        (typeof e?.shortMessage === "string" &&
+          /reverted|revert reason|execution reverted/i.test(e.shortMessage));
+      if (looksLikeRevert) throw err;
+      // Opt-in warn: only when a logger is attached. Default console is
+      // fine for server-side diagnostics.
+      if (typeof console !== "undefined" && console.warn) {
+        console.warn(
+          "[liquid-sdk] deployToken gas estimation failed; falling back to 6M gas limit:",
+          e?.shortMessage ?? err,
+        );
+      }
       gas = 6_000_000n;
     }
 
