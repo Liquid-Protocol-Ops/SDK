@@ -35,7 +35,7 @@ No API keys, no backend, no database. The SDK talks directly to Base mainnet con
 Liquid Protocol deploys ERC-20 tokens on Base with:
 - Uniswap V4 liquidity pools (automatic)
 - LP fee collection and reward distribution
-- MEV protection via block delay
+- MEV protection via sniper auction
 - Optional extensions: dev buy, vault lockup/vesting, airdrops
 
 Every token gets 100 billion supply (18 decimals), a Uniswap V4 pool, and locked liquidity with configurable reward splits.
@@ -161,7 +161,7 @@ const txHash = await sdk.collectRewardsWithoutUnlock(tokenAddress);
 await publicClient.waitForTransactionReceipt({ hash: txHash });
 ```
 
-**Important:** After deployment, the pool is locked for a MEV block delay. `collectRewardsWithoutUnlock` may revert with `ManagerLocked` if called too soon. Use `getPoolUnlockTime` to check.
+**Important:** After deployment, the sniper auction MEV module may block early reward collection. If `collectRewardsWithoutUnlock` reverts with `ManagerLocked`, wait for the auction period to end.
 
 #### `sdk.updateRewardRecipient(tokenAddress, rewardIndex, newRecipient)` — Change reward recipient
 
@@ -455,21 +455,23 @@ const result = await sdk.bidInAuction({
 
 ---
 
-### MEV Protection
+### MEV Descending Fees
 
-#### `sdk.getMevBlockDelay()` — Get configured block delay
+#### `sdk.getMevDescendingFeesBlockDelay()` — Configured block delay
 
 ```typescript
-const delay = await sdk.getMevBlockDelay();
-// delay: bigint — number of blocks
+const delay = await sdk.getMevDescendingFeesBlockDelay();
+// delay: bigint — number of blocks the MEV module fee window covers
 ```
 
-#### `sdk.getPoolUnlockTime(poolId)` — When does MEV lock expire
+`sdk.getMevBlockDelay()` is a deprecated alias for the same call.
+
+#### `sdk.getPoolUnlockTime(poolId)` — When MEV lock expires
 
 ```typescript
 const unlockTime = await sdk.getPoolUnlockTime(poolId);
-// unlockTime: bigint — unix timestamp
-// If Date.now()/1000 < unlockTime, pool is still locked
+// If Date.now()/1000 < unlockTime, the pool is still inside the MEV window
+// and writes that go through the MevDescendingFees hook may revert with ManagerLocked.
 ```
 
 ---
@@ -516,9 +518,9 @@ When calling `deployToken`, all fields except `name` and `symbol` are optional. 
 | `rewardAdmins` | `[walletAddress]` | Deployer is admin |
 | `rewardRecipients` | `[walletAddress]` | Deployer gets rewards |
 | `rewardBps` | `[10000]` | 100% to deployer |
-| `tickLower` | `[-230400, -198600, -168600]` | 3-tranche Liquid default |
-| `tickUpper` | `[-198600, -168600, -122600]` | 3-tranche Liquid default |
-| `positionBps` | `[4000, 5000, 1000]` | 40% / 50% / 10% |
+| `tickLower` | `[-230400, -216000, -202000, -155000, -141000]` | 5-position Liquid layout |
+| `tickUpper` | `[-216000, -155000, -155000, -120000, -120000]` | 5-position Liquid layout |
+| `positionBps` | `[1000, 5000, 1500, 2000, 500]` | 10% / 50% / 15% / 20% / 5% |
 | `mevModule` | `ADDRESSES.SNIPER_AUCTION_V2` | 80%→40% over 20s |
 | `extensions` | `[]` | No extensions |
 
@@ -587,7 +589,8 @@ import {
   LiquidSniperUtilV2Abi,
   LiquidAirdropV2Abi,
   LiquidPoolExtensionAllowlistAbi,
-  LiquidMevBlockDelayAbi,
+  LiquidMevDescendingFeesAbi,
+  LiquidMevBlockDelayAbi, // deprecated alias — prefer LiquidMevDescendingFeesAbi
   LiquidLpLockerAbi,
   ERC20Abi,
 } from "liquid-sdk";
