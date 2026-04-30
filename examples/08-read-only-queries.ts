@@ -35,6 +35,10 @@ async function main() {
   const deprecated = await sdk.isFactoryDeprecated();
   console.log("\nFactory deprecated:", deprecated);
 
+  // MEV descending fees window
+  const blockDelay = await sdk.getMevDescendingFeesBlockDelay();
+  console.log("MEV descending fees block delay:", blockDelay.toString(), "blocks");
+
   console.log("\nDone — all queries completed without a wallet!");
 }
 

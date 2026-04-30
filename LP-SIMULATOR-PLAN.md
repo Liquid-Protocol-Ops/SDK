@@ -29,11 +29,8 @@ lp-simulator/
 │   │   ├── FeeProjection.tsx    # Static fee rate toggle (1%/2%/3%) + projected fees
 │   │   └── ExportConfig.tsx     # Show/copy SDK DeployTokenParams config
 │   ├── lib/
-│   │   ├── tick-math.ts         # Import from liquid-sdk or port
-│   │   ├── positions.ts         # Import from liquid-sdk or port
-│   │   ├── simulation.ts        # Buy simulation engine
-│   │   ├── fee-calculator.ts    # Fee projection math
-│   │   └── constants.ts         # Liquid Protocol defaults
+│   │   ├── simulation.ts        # Buy simulation engine (uses liquid-sdk tick math)
+│   │   └── fee-calculator.ts    # Fee projection (uses liquid-sdk FEE constants)
 │   └── hooks/
 │       └── useSimulator.ts      # Main state management hook
 ├── public/
@@ -106,33 +103,36 @@ interface SimState {
   currentTick: number;
   currentMcapETH: number;
   totalETHBought: number;
-  tokensRemaining: bigint[]; // per position
+  tokensRemaining: number[]; // per position; number is enough for projection precision
+  currentPositionIndex: number; // resume point — never revisit exhausted positions
   cumulativeFees: number;
 }
 
-function simulateBuy(state: SimState, ethAmount: number, feeRate: number): SimState {
-  let remainingETH = ethAmount;
-  const fee = remainingETH * feeRate;
-  remainingETH -= fee;
-  
-  // Walk through positions from current tick upward
-  // Each position has a token reserve that gets consumed
-  // Price increases as tokens are bought within each range
-  // When a position is exhausted, move to the next one
-  
-  // Uses concentrated liquidity math:
-  // For each position: L = supply / (sqrt(price_upper) - sqrt(price_lower))
-  // Tokens out = L * (sqrt(price_current) - sqrt(price_lower))
-  // ETH in = L * (1/sqrt(price_lower) - 1/sqrt(price_current))
-  
-  return newState;
+interface PositionPrecomputed {
+  tickLower: number;
+  tickUpper: number;
+  sqrtPriceLower: number;
+  sqrtPriceUpper: number;
+  liquidityL: number;
+}
+
+// Precompute sqrt(price) and L per position when positions change.
+// Memoize keyed on the positions array so per-buy work stays O(1) for the active range.
+function precomputePositions(positions: Position[]): PositionPrecomputed[] { /* ... */ }
+
+function simulateBuy(state: SimState, ethAmount: number, feeRate: number, pre: PositionPrecomputed[]): SimState {
+  const fee = ethAmount * feeRate;
+  let remainingETH = ethAmount - fee;
+  // Resume from the active position — exhausted ranges are never re-scanned.
+  // ...consume ETH against pre[currentPositionIndex], advance index when reserve hits zero.
 }
 ```
 
-Key math from Uniswap V4 concentrated liquidity:
+Key math from Uniswap V4 concentrated liquidity (note: WETH/token sort order is set by `isLiquidToken0` at deploy time — the simulator must mirror that to pick the right side of the formula):
 - `price = 1.0001^tick`
-- `L (liquidity) = tokenReserve / (sqrt(priceUpper) - sqrt(priceLower))`
-- `ETH needed = L * (sqrt(priceAfter) - sqrt(priceBefore))` (simplified for token0/token1 ordering)
+- `L = tokenReserve / (sqrt(priceUpper) - sqrt(priceLower))`
+- `ETH needed = L * (sqrt(priceAfter) - sqrt(priceBefore))` when WETH is token1
+- `ETH needed = L * (1/sqrt(priceBefore) - 1/sqrt(priceAfter))` when WETH is token0
 
 ### 7. Fee Projection (`FeeProjection.tsx`)
 
@@ -153,9 +153,9 @@ import { LiquidSDK } from "liquid-sdk";
 const config = {
   name: "MyToken",
   symbol: "MTK",
-  tickIfToken0IsLiquid: -226600,  // from simulator
+  tickIfToken0IsLiquid: -230400,  // from simulator (SDK default starting tick)
   tickSpacing: 200,
-  tickLower: [-226600, -216000, -202000, -155000, -141000],
+  tickLower: [-230400, -216000, -202000, -155000, -141000],
   tickUpper: [-216000, -155000, -155000, -120000, -120000],
   positionBps: [1000, 5000, 1500, 2000, 500],
   // ... extensions if configured
@@ -168,27 +168,28 @@ const result = await sdk.deployToken(config);
 
 Single `useSimulator` hook manages all state:
 
+Only inputs are real state — `simState` and chart series are derived via `useMemo` so they cannot drift from inputs.
+
 ```typescript
-interface SimulatorState {
-  // Config
+interface SimulatorInputs {
   startingMcapUSD: number;
   ethPriceUSD: number;
   feeRate: number; // 0.01, 0.02, or 0.03
   tickSpacing: number;
-  
-  // Supply
   airdropPct: number;
   vaultPct: number;
   presalePct: number;
-  
-  // Positions
   positions: { tickLower: number; tickUpper: number; positionBps: number }[];
-  
-  // Simulation
-  buys: number[]; // ETH amounts
-  simState: SimState;
+  buys: number[]; // ETH amounts in append order; cap to last 50 for replay cost
 }
+
+// Derived (never stored):
+//   precomputed = useMemo(() => precomputePositions(positions), [positions])
+//   simState    = useMemo(() => buys.reduce((s, eth) => simulateBuy(s, eth, feeRate, precomputed), initial), [buys, feeRate, precomputed])
+//   chartSeries = useMemo(() => buildSeries(precomputed, simState.currentTick, ethPriceUSD), [precomputed, simState.currentTick, ethPriceUSD])
 ```
+
+ETH price is fetched once on mount via SWR (5-min cache) with manual override; do not refetch on input keystrokes.
 
 ## Data Flow
 
@@ -251,30 +252,32 @@ User clicks "Export"
 
 ## Key Constants (from SDK)
 
+Import directly from `liquid-sdk` — do not redefine in the simulator. The SDK is the single source of truth and bumps with protocol changes.
+
 ```typescript
-// Token
-const TOTAL_SUPPLY = 100_000_000_000n * 10n ** 18n; // 100B tokens
+import { TOKEN, FEE, DEFAULTS, POOL_POSITIONS } from "liquid-sdk";
 
-// Fees
-const FEE_DENOMINATOR = 1_000_000;     // 100%
-const PROTOCOL_FEE = 200_000;          // 20% of LP fees
-const MAX_LP_FEE = 100_000;            // 10%
-const MAX_MEV_FEE = 800_000;           // 80%
+// TOKEN.SUPPLY                       // 100B * 10^18
+// TOKEN.DECIMALS                     // 18
+// TOKEN.MAX_EXTENSIONS               // 10
+// TOKEN.MAX_EXTENSION_BPS            // 9000
 
-// Positions
-const MAX_POSITIONS = 7;
-const BPS_DENOMINATOR = 10_000;
-const DEFAULT_TICK_SPACING = 200;
+// FEE.DENOMINATOR                    // 1_000_000 (100%)
+// FEE.PROTOCOL_FEE_NUMERATOR         // 200_000 (20% of LP fees)
+// FEE.MAX_LP_FEE                     // 100_000 (10%)
+// FEE.MAX_MEV_FEE                    // 800_000 (80%)
+// FEE.BPS                            // 10_000
 
-// Default: 5-position Liquid layout
-const DEFAULT_POSITIONS = [
-  { tickLower: -230400, tickUpper: -216000, positionBps: 1000 },  // 10%
-  { tickLower: -216000, tickUpper: -155000, positionBps: 5000 },  // 50%
-  { tickLower: -202000, tickUpper: -155000, positionBps: 1500 },  // 15%
-  { tickLower: -155000, tickUpper: -120000, positionBps: 2000 },  // 20%
-  { tickLower: -141000, tickUpper: -120000, positionBps: 500 },   // 5%
-];
+// DEFAULTS.TICK_SPACING              // 200
+// DEFAULTS.TICK_IF_TOKEN0_IS_LIQUID  // -230400
+// DEFAULTS.PAIRED_FEE_BPS            // 100 (1%)
+// DEFAULTS.LIQUID_FEE_BPS            // 100 (1%)
+
+// POOL_POSITIONS.Liquid              // 5-position layout used in Export examples
+// POOL_POSITIONS.Standard            // single full-range position
 ```
+
+`MAX_POSITIONS = 7` is enforced by `createPositions()` in `liquid-sdk/src/utils/positions.ts`; reuse that helper for validation rather than duplicating the constant.
 
 ## Deployment
 

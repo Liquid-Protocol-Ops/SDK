@@ -455,6 +455,27 @@ const result = await sdk.bidInAuction({
 
 ---
 
+### MEV Descending Fees
+
+#### `sdk.getMevDescendingFeesBlockDelay()` — Configured block delay
+
+```typescript
+const delay = await sdk.getMevDescendingFeesBlockDelay();
+// delay: bigint — number of blocks the MEV module fee window covers
+```
+
+`sdk.getMevBlockDelay()` is a deprecated alias for the same call.
+
+#### `sdk.getPoolUnlockTime(poolId)` — When MEV lock expires
+
+```typescript
+const unlockTime = await sdk.getPoolUnlockTime(poolId);
+// If Date.now()/1000 < unlockTime, the pool is still inside the MEV window
+// and writes that go through the MevDescendingFees hook may revert with ManagerLocked.
+```
+
+---
+
 ### Factory & Allowlist Checks
 
 #### `sdk.isFactoryDeprecated()` — Is the factory still active
@@ -497,9 +518,9 @@ When calling `deployToken`, all fields except `name` and `symbol` are optional. 
 | `rewardAdmins` | `[walletAddress]` | Deployer is admin |
 | `rewardRecipients` | `[walletAddress]` | Deployer gets rewards |
 | `rewardBps` | `[10000]` | 100% to deployer |
-| `tickLower` | `[-230400, -198600, -168600]` | 3-tranche Liquid default |
-| `tickUpper` | `[-198600, -168600, -122600]` | 3-tranche Liquid default |
-| `positionBps` | `[4000, 5000, 1000]` | 40% / 50% / 10% |
+| `tickLower` | `[-230400, -216000, -202000, -155000, -141000]` | 5-position Liquid layout |
+| `tickUpper` | `[-216000, -155000, -155000, -120000, -120000]` | 5-position Liquid layout |
+| `positionBps` | `[1000, 5000, 1500, 2000, 500]` | 10% / 50% / 15% / 20% / 5% |
 | `mevModule` | `ADDRESSES.SNIPER_AUCTION_V2` | 80%→40% over 20s |
 | `extensions` | `[]` | No extensions |
 
@@ -568,7 +589,8 @@ import {
   LiquidSniperUtilV2Abi,
   LiquidAirdropV2Abi,
   LiquidPoolExtensionAllowlistAbi,
-  LiquidMevBlockDelayAbi,
+  LiquidMevDescendingFeesAbi,
+  LiquidMevBlockDelayAbi, // deprecated alias — prefer LiquidMevDescendingFeesAbi
   LiquidLpLockerAbi,
   ERC20Abi,
 } from "liquid-sdk";

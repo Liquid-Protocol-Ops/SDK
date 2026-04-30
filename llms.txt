@@ -86,6 +86,10 @@ Every token gets 100 billion supply (18 decimals), a Uniswap V4 pool, and locked
 - `sdk.getAuctionMaxRounds()` — Max auction rounds
 - `sdk.getAuctionGasPriceForBid(gasPeg, bidAmount)` — Calculate gas price for bid
 
+### MEV Descending Fees
+- `sdk.getMevDescendingFeesBlockDelay()` — Configured block delay (also: `getMevBlockDelay()` deprecated alias)
+- `sdk.getPoolUnlockTime(poolId)` — When MEV lock expires (unix timestamp)
+
 ### Factory & Allowlist
 - `sdk.isFactoryDeprecated()` — Is factory still active
 - `sdk.isLockerEnabled(locker, hook)` — Is locker approved for hook

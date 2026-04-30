@@ -209,6 +209,14 @@ await sdk.getAuctionGasPriceForBid(gasPeg, amount)   // → bigint
 await sdk.bidInAuction(params, maxFeePerGas)         // → { txHash } (write)
 ```
 
+### MEV Descending Fees
+
+```typescript
+await sdk.getMevDescendingFeesBlockDelay()           // → bigint (block window)
+await sdk.getMevBlockDelay()                         // → bigint (deprecated alias)
+await sdk.getPoolUnlockTime(poolId)                  // → bigint (unix timestamp)
+```
+
 ### Factory Status
 
 ```typescript
@@ -359,7 +367,8 @@ The SDK exports 13 ABIs:
 | `LiquidSniperUtilV2Abi` | Sniper Util (bidInAuction, getTxGasPriceForBidAmount) |
 | `LiquidAirdropV2Abi` | Airdrop (airdrops, claim, amountAvailableToClaim) |
 | `LiquidPoolExtensionAllowlistAbi` | Extension allowlist |
-| `LiquidMevBlockDelayAbi` | MEV Block Delay (blockDelay, poolUnlockTime) |
+| `LiquidMevDescendingFeesAbi` | MEV Descending Fees (blockDelay, poolUnlockTime) |
+| `LiquidMevBlockDelayAbi` | Deprecated alias — use `LiquidMevDescendingFeesAbi` |
 | `LiquidLpLockerAbi` | LP Locker (tokenRewards, collectRewards, updateRewardRecipient, updateRewardAdmin) |
 | `LiquidTokenAbi` | Token (updateImage, updateMetadata, updateAdmin) |
 | `LiquidUniv4EthDevBuyAbi` | Dev Buy Extension (receiveTokens) |
