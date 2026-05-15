@@ -4,6 +4,11 @@ All notable changes to `liquid-sdk` will be documented in this file.
 
 ## [1.7.4] - 2026-04-23
 
+### Added
+- `EXTERNAL.DIEM` — the DIEM token address on Base, for DIEM-paired token launches.
+- `shiftPositions(positions, shiftBy)` — re-anchor a fixed-shape position layout to a different starting tick, preserving `positionBps`.
+- `createLiquidPositionsUSD(startingMarketCapUSD, pairedTokenPriceUSD, tickSpacing?)` — the canonical 5-position "Liquid" layout re-anchored to a starting market cap, denominated in the *paired token's* USD price. Works for any pair token (WETH or DIEM); unlike `createDefaultPositions` (3-tranche), it preserves the exact `POOL_POSITIONS.Liquid` curve `deployToken()` uses by default.
+
 ### Fixed
 - `deployToken` gas estimation no longer silently swallows on-chain revert errors. Previously a failing `eth_estimateGas` (e.g., insufficient msg.value, paused factory, pre-flight check revert) would be caught and replaced with a 6M fallback, causing the tx to be broadcast and burn real gas for nothing. Now a revert-shaped error bubbles to the caller; only transport-level failures fall back. Non-revert fallbacks log a warning via `console.warn`.
 
