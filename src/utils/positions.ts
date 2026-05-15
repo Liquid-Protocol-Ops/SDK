@@ -7,6 +7,7 @@
  */
 
 import { getTickFromMarketCapETH, getTickFromMarketCapUSD } from "./tick-math";
+import { POOL_POSITIONS, DEFAULTS, type PoolPosition } from "../constants";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -196,6 +197,89 @@ export function createDefaultPositions(
   return {
     ...positions,
     tickIfToken0IsLiquid: positions.tickLower[0],
+  };
+}
+
+/**
+ * Shift every tick in a position layout by a fixed amount, preserving the
+ * positionBps splits. The primitive behind `createLiquidPositionsUSD` — it
+ * re-anchors a fixed-shape layout (e.g. `POOL_POSITIONS.Liquid`) to a
+ * different starting tick.
+ *
+ * `shiftBy` should be a multiple of the pool's tick spacing so the shifted
+ * ticks stay aligned. A difference of two aligned ticks is always aligned,
+ * so deriving it as `targetTick - sourceBottomTick` is safe.
+ *
+ * @param positions - Source positions (e.g. `POOL_POSITIONS.Liquid`)
+ * @param shiftBy - Ticks to add to every tickLower/tickUpper (may be negative)
+ * @returns A fresh array — the source is not mutated
+ */
+export function shiftPositions(
+  positions: readonly PoolPosition[],
+  shiftBy: number,
+): PoolPosition[] {
+  return positions.map((p) => ({
+    tickLower: p.tickLower + shiftBy,
+    tickUpper: p.tickUpper + shiftBy,
+    positionBps: p.positionBps,
+  }));
+}
+
+/**
+ * Build the canonical 5-position "Liquid" layout (10/50/15/20/5) re-anchored
+ * to a starting market cap, denominated in the *paired token's* USD price.
+ *
+ * Works for any pair token — pass the price of whatever the pool is paired
+ * against:
+ *   - WETH-paired: `createLiquidPositionsUSD(20_000, ethPriceUSD)`
+ *   - DIEM-paired: `createLiquidPositionsUSD(20_000, diemPriceUSD)`
+ *
+ * Unlike `createDefaultPositions` (a 3-tranche layout), this preserves the
+ * exact shape of `POOL_POSITIONS.Liquid` — the same curve `deployToken()`
+ * uses by default — just shifted so its bottom sits at the requested start.
+ *
+ * @param startingMarketCapUSD - Initial market cap in USD
+ * @param pairedTokenPriceUSD - USD price of the token the pool is paired against
+ * @param tickSpacing - Tick spacing (default 200)
+ * @returns Position arrays + `tickIfToken0IsLiquid`, ready to spread into `deployToken()`
+ *
+ * @example
+ * ```ts
+ * import { LiquidSDK, EXTERNAL, createLiquidPositionsUSD } from "liquid-sdk";
+ *
+ * const positions = createLiquidPositionsUSD(20_000, diemPriceUSD);
+ * await sdk.deployToken({
+ *   name: "Agent Token",
+ *   symbol: "AGENT",
+ *   pairedToken: EXTERNAL.DIEM,
+ *   ...positions,
+ * });
+ * ```
+ */
+export function createLiquidPositionsUSD(
+  startingMarketCapUSD: number,
+  pairedTokenPriceUSD: number,
+  tickSpacing: number = 200,
+): PositionArrays & { tickIfToken0IsLiquid: number } {
+  if (pairedTokenPriceUSD <= 0) {
+    throw new Error("pairedTokenPriceUSD must be positive");
+  }
+
+  const startingTick = getTickFromMarketCapUSD(
+    startingMarketCapUSD,
+    pairedTokenPriceUSD,
+    tickSpacing,
+  );
+  const shifted = shiftPositions(
+    POOL_POSITIONS.Liquid,
+    startingTick - DEFAULTS.TICK_IF_TOKEN0_IS_LIQUID,
+  );
+
+  return {
+    tickLower: shifted.map((p) => p.tickLower),
+    tickUpper: shifted.map((p) => p.tickUpper),
+    positionBps: shifted.map((p) => p.positionBps),
+    tickIfToken0IsLiquid: startingTick,
   };
 }
 

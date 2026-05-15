@@ -3,6 +3,8 @@ import {
   createPositions,
   createPositionsUSD,
   createDefaultPositions,
+  createLiquidPositionsUSD,
+  shiftPositions,
   describePositions,
   DEFAULT_TRANCHES_USD,
 } from "../../src/utils/positions";
@@ -258,5 +260,72 @@ describe("POOL_POSITIONS presets", () => {
         expect(pos.tickUpper % 200 === 0).toBe(true);
       }
     }
+  });
+});
+
+describe("shiftPositions", () => {
+  it("shifts every tick by the given amount", () => {
+    const shifted = shiftPositions(POOL_POSITIONS.Liquid, 1000);
+    expect(shifted[0].tickLower).toBe(POOL_POSITIONS.Liquid[0].tickLower + 1000);
+    expect(shifted[0].tickUpper).toBe(POOL_POSITIONS.Liquid[0].tickUpper + 1000);
+  });
+
+  it("preserves positionBps", () => {
+    const shifted = shiftPositions(POOL_POSITIONS.Liquid, -4000);
+    expect(shifted.map((p) => p.positionBps)).toEqual(
+      POOL_POSITIONS.Liquid.map((p) => p.positionBps),
+    );
+  });
+
+  it("keeps ticks aligned when shifted by an aligned amount", () => {
+    const shifted = shiftPositions(POOL_POSITIONS.Liquid, 2000);
+    for (const p of shifted) {
+      expect(p.tickLower % 200 === 0).toBe(true);
+      expect(p.tickUpper % 200 === 0).toBe(true);
+    }
+  });
+
+  it("does not mutate the source", () => {
+    const before = POOL_POSITIONS.Liquid[0].tickLower;
+    shiftPositions(POOL_POSITIONS.Liquid, 5000);
+    expect(POOL_POSITIONS.Liquid[0].tickLower).toBe(before);
+  });
+});
+
+describe("createLiquidPositionsUSD", () => {
+  it("returns the 5-position Liquid layout (10/50/15/20/5)", () => {
+    const result = createLiquidPositionsUSD(20_000, 2070);
+    expect(result.tickLower).toHaveLength(5);
+    expect(result.positionBps).toEqual([1000, 5000, 1500, 2000, 500]);
+  });
+
+  it("re-anchors so tickIfToken0IsLiquid equals the first tickLower", () => {
+    const result = createLiquidPositionsUSD(20_000, 2070);
+    expect(result.tickIfToken0IsLiquid).toBe(result.tickLower[0]);
+  });
+
+  it("preserves the Liquid curve shape (tick gaps unchanged)", () => {
+    const result = createLiquidPositionsUSD(50_000, 1500);
+    const gaps = (a: number[]) => a.map((t) => t - a[0]);
+    expect(gaps(result.tickLower)).toEqual(
+      gaps(POOL_POSITIONS.Liquid.map((p) => p.tickLower)),
+    );
+  });
+
+  it("adapts the starting tick to the paired-token price", () => {
+    const cheap = createLiquidPositionsUSD(20_000, 1000);
+    const dear = createLiquidPositionsUSD(20_000, 4000);
+    expect(cheap.tickIfToken0IsLiquid).not.toBe(dear.tickIfToken0IsLiquid);
+  });
+
+  it("all ticks aligned to tick spacing", () => {
+    const result = createLiquidPositionsUSD(20_000, 2070);
+    for (const t of [...result.tickLower, ...result.tickUpper]) {
+      expect(t % 200 === 0).toBe(true);
+    }
+  });
+
+  it("throws for non-positive paired-token price", () => {
+    expect(() => createLiquidPositionsUSD(20_000, 0)).toThrow("must be positive");
   });
 });
