@@ -36,6 +36,9 @@ export const ADDRESSES = {
 export const EXTERNAL = {
   POOL_MANAGER: "0x498581fF718922c3f8e6A244956aF099B2652b2b" as Address,
   WETH: "0x4200000000000000000000000000000000000006" as Address,
+  /** DIEM — Liquid's intelligence-economy token. Also a pair token for
+   *  agent-token launches (see `createLiquidPositionsUSD`). */
+  DIEM: "0xF4d97F2da56e8c3098f3a8D538DB630A2606a024" as Address,
   UNIVERSAL_ROUTER:
     "0x6fF5693b99212Da76ad316178A184AB56D299b43" as Address,
   PERMIT2: "0x000000000022D473030F116dDEE9F6B43aC78BA3" as Address,

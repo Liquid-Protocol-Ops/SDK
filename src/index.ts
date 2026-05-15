@@ -26,6 +26,8 @@ export {
   createPositions,
   createPositionsUSD,
   createDefaultPositions,
+  createLiquidPositionsUSD,
+  shiftPositions,
   describePositions,
   DEFAULT_TRANCHES_USD,
   encodeStaticFeePoolData,
