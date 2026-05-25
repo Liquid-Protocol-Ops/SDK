@@ -9,6 +9,7 @@ Drop these files into your AI agent's context to give it the ability to interact
 | **Deploy Token** | [`deploy-token.md`](./deploy-token.md) | Deploy ERC-20 tokens with Uniswap V4 liquidity, custom fees, dev buys, and reward splits |
 | **Bid in Auction** | [`bid-in-auction.md`](./bid-in-auction.md) | Participate in sniper auctions for early access to newly launched tokens |
 | **Index Tokens** | [`index-tokens.md`](./index-tokens.md) | Discover, index, and monitor all Liquid Protocol token deployments |
+| **Fee Tracking** | [`fee-tracking.md`](./fee-tracking.md) | Track fee accrual, burns, and LIQ buyback cycles per token — build proof-of-burn feeds without a backend |
 
 ## How to Use
 
