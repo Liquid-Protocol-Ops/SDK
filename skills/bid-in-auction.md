@@ -22,6 +22,8 @@ Sniper auction participation involves significant financial risk:
 
 7. **Smart contract risk**: The auction contracts are unaudited for this specific deployment. Bugs or misconfigurations could result in loss of funds.
 
+8. **Standing WETH approvals are dangerous**: A lingering WETH allowance to `SniperUtilV2` (`0x2B6cd5Be183c388Dd0074d53c52317df1414cd9f`) is the surface a "drain via standing approval" exploit targets — a sibling Clanker fork was drained this way in 2026-05. **As of this SDK version, `bidInAuction` approves only the exact `amountIn` per bid** (no multiplier), so each bid consumes the allowance fully and leaves zero residual. If you bid through an older SDK that approved a multiplier, **revoke your WETH allowance to `SniperUtilV2` before bidding again**. Never grant a max/unlimited WETH approval to these contracts.
+
 **As an agent, you MUST:**
 - Clearly present these risks to the user before their first auction bid
 - Ask for explicit confirmation (e.g., "I understand the risks of auction sniping and want to proceed")
@@ -98,7 +100,7 @@ Before bidding, understand these mechanics:
 - **`bidAmount`** (msg.value): ETH sent to the auction as your bid. Goes to protocol/LP.
 - **`amountIn`** (WETH transfer): The actual swap input. Pulled from your WETH balance via `transferFrom`. **This is separate from the bid.**
 
-The SDK **automatically wraps ETH → WETH and approves the SniperUtilV2** if your WETH balance or allowance is insufficient. You just need enough total ETH.
+The SDK **automatically wraps ETH → WETH and approves the SniperUtilV2 for the exact `amountIn`** (no multiplier — the bid's `transferFrom` consumes the full allowance, so nothing standing survives). You just need enough total ETH.
 
 ### Gas Price = Bid Encoding
 The bid amount is encoded in the transaction's gas price: `bidAmount = (tx.gasprice - gasPeg) × paymentPerGasUnit`. Both `maxFeePerGas` **and** `maxPriorityFeePerGas` must be set to the calculated value, otherwise Base's EIP-1559 will compute a lower effective gas price.
@@ -334,7 +336,7 @@ interface BidInAuctionResult {
 | Max rounds | 5 | Total auction rounds per token |
 | Blocks between auctions | 2 | Rounds occur every 2 blocks |
 | Blocks before first auction | 2 | First auction = deploy block + 2 |
-| Payment per gas unit | 0.0001 ETH (1e14 wei) | Converts gas delta to bid ETH |
+| Payment per gas unit | 0.0001 ETH (1e14 wei) | Converts gas delta to bid ETH. *May be set to 0 by the auction owner as a security mitigation — when 0, the required bid is also 0 (auctions function as a free gas-price race; the bid-payment path is neutered).* |
 | Starting fee | 800,000 (80%) | Fee at auction start |
 | Ending fee | 400,000 (40%) | Fee floor after decay |
 | Decay period | 20 seconds | Time for fee to decay from start to end |

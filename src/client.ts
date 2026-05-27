@@ -992,7 +992,21 @@ export class LiquidSDK {
       await this.publicClient.waitForTransactionReceipt({ hash: wrapTx });
     }
 
-    // ── Auto-approve SniperUtilV2 for WETH if needed ──────────────────
+    // ── Auto-approve SniperUtilV2 for WETH (EXACT amount — no standing) ──
+    // Approves only what this bid needs. The bid's `transferFrom` consumes
+    // the full allowance, so nothing survives the bid → no standing WETH
+    // allowance for a "drain via standing approval" exploit to target.
+    // (Defense-in-depth after a sibling Clanker fork was drained via that
+    // pattern in 2026-05. The underlying protocol fix is owner setting
+    // `paymentPerGasUnit = 0` on the auction contract.)
+    //
+    // Trade-off: prior versions approved `amountIn * 10n` so 9 subsequent
+    // bids needed no approve. Sniper bots that previously relied on that
+    // pre-approval should call `WETH.approve(SNIPER_UTIL_V2, amountIn)`
+    // ahead of the auction window (and accept the brief standing-allowance
+    // window), OR start `bidInAuction` ~1 block earlier so the approve
+    // confirms in time. Existing residual allowances from older SDK
+    // versions are NOT touched here — holders should revoke them.
     const allowance = (await this.publicClient.readContract({
       address: weth,
       abi: ERC20Abi,
@@ -1005,7 +1019,7 @@ export class LiquidSDK {
         address: weth,
         abi: ERC20Abi,
         functionName: "approve",
-        args: [ADDRESSES.SNIPER_UTIL_V2, params.amountIn * 10n],
+        args: [ADDRESSES.SNIPER_UTIL_V2, params.amountIn],
         chain: base,
         account,
       });
