@@ -2,6 +2,13 @@
 
 All notable changes to `liquid-sdk` will be documented in this file.
 
+## [1.7.5] - 2026-06-09
+
+### Security
+- `bidInAuction` now approves WETH to `SniperUtilV2` for **exactly `amountIn`** (previously `amountIn * 10n`). Each bid's `transferFrom` consumes the full allowance, so **no standing WETH allowance survives** — removing the "drain via standing approval" surface that hit a sibling Clanker fork in 2026-05. Complements the protocol-level `paymentPerGasUnit == 0` mitigation already live on the auction contract. (#18)
+  - **Action for existing users:** if you bid through an older SDK that approved a multiplier, **revoke your residual WETH allowance to `SniperUtilV2` (`0x2B6cd5Be183c388Dd0074d53c52317df1414cd9f`)**.
+  - **Trade-off:** prior versions pre-approved 10× so 9 subsequent bids skipped the approve. Bots relying on that should either `WETH.approve(SNIPER_UTIL_V2, amountIn)` ahead of the auction window or start `bidInAuction` ~1 block earlier so the approve confirms in time.
+
 ## [1.7.4] - 2026-04-23
 
 ### Added
