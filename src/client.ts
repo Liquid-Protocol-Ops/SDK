@@ -383,6 +383,30 @@ export class LiquidSDK {
       throw new Error("walletClient with account required for deployToken");
     }
 
+    // Non-WETH pairs must anchor their own starting tick. The tick prices
+    // full supply in *paired-token* units, so the WETH-calibrated default
+    // (-230400 ≈ 10 paired tokens FDV) only means "~10 ETH market cap" when
+    // the pair IS WETH — for any other pair it silently prices the launch at
+    // 10 × that token's market price, an accident rather than a choice. LP
+    // is permanently locked, so a mispriced pool can't be fixed after the
+    // fact. Fail closed and point at the USD-anchored helper.
+    if (
+      params.pairedToken !== undefined &&
+      getAddress(params.pairedToken) !== getAddress(EXTERNAL.WETH) &&
+      params.tickIfToken0IsLiquid === undefined
+    ) {
+      throw new Error(
+        `deployToken: pairedToken ${params.pairedToken} is not WETH, but no ` +
+          `tickIfToken0IsLiquid was provided. The default starting tick ` +
+          `(${DEFAULTS.TICK_IF_TOKEN0_IS_LIQUID}) prices full supply at ~10 of ` +
+          `the paired token — a market cap accidentally pegged to that token's ` +
+          `price instead of one you chose. Compute the anchor explicitly with ` +
+          `createLiquidPositionsUSD(startingMarketCapUSD, pairedTokenPriceUSD) ` +
+          `and pass its tickIfToken0IsLiquid (plus tickLower/tickUpper/` +
+          `positionBps) to deployToken.`
+      );
+    }
+
     const account = this.walletClient.account.address;
 
     const deploymentConfig: DeploymentConfig = {

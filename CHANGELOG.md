@@ -2,6 +2,11 @@
 
 All notable changes to `liquid-sdk` will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- **Breaking (fail-closed):** `deployToken` now **throws** when `pairedToken` is not WETH and no `tickIfToken0IsLiquid` is provided. The default starting tick (`-230400`) prices full supply at ~10 of the *paired* token — only meaningful for WETH (~10 ETH market cap); for any other pair it silently pegs the launch FDV to 10× that token's market price (e.g. ~$13.7k for DIEM at $1,375 — an accident, not a choice). Since LP is permanently locked, a mispriced pool cannot be fixed. Compute the anchor with `createLiquidPositionsUSD(startingMarketCapUSD, pairedTokenPriceUSD)` and pass its `tickIfToken0IsLiquid` + positions explicitly.
+
 ## [1.7.5] - 2026-06-09
 
 ### Security
