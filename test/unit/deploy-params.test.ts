@@ -156,4 +156,54 @@ describe("deployToken parameter defaults", () => {
     const call = writeContractMock.mock.calls[0][0];
     expect(call.value).toBe(300n);
   });
+
+  describe("non-WETH pair starting-tick guard", () => {
+    it("throws when pairedToken is DIEM and no tickIfToken0IsLiquid is given", async () => {
+      await expect(
+        sdk.deployToken({
+          name: "Test",
+          symbol: "TST",
+          pairedToken: EXTERNAL.DIEM,
+        })
+      ).rejects.toThrow(/createLiquidPositionsUSD/);
+      // Fail closed: nothing reaches the chain.
+      expect(writeContractMock).not.toHaveBeenCalled();
+    });
+
+    it("throws for any non-WETH pair, case-insensitively", async () => {
+      await expect(
+        sdk.deployToken({
+          name: "Test",
+          symbol: "TST",
+          pairedToken: EXTERNAL.DIEM.toLowerCase() as `0x${string}`,
+        })
+      ).rejects.toThrow(/not WETH/);
+      expect(writeContractMock).not.toHaveBeenCalled();
+    });
+
+    it("allows a DIEM pair when the starting tick is explicit", async () => {
+      const config = await callDeployAndGetArgs({
+        name: "Test",
+        symbol: "TST",
+        pairedToken: EXTERNAL.DIEM,
+        tickIfToken0IsLiquid: -100000,
+        tickLower: [-100000],
+        tickUpper: [-80000],
+        positionBps: [10000],
+      });
+      expect(config.poolConfig.pairedToken).toBe(EXTERNAL.DIEM);
+      expect(config.poolConfig.tickIfToken0IsLiquid).toBe(-100000);
+    });
+
+    it("still applies the default tick for WETH pairs (explicit or omitted)", async () => {
+      const config = await callDeployAndGetArgs({
+        name: "Test",
+        symbol: "TST",
+        pairedToken: EXTERNAL.WETH,
+      });
+      expect(config.poolConfig.tickIfToken0IsLiquid).toBe(
+        DEFAULTS.TICK_IF_TOKEN0_IS_LIQUID
+      );
+    });
+  });
 });
