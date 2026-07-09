@@ -38,6 +38,10 @@
   "peerDependencies": {
     "viem": "^2.0.0"
   },
+  "overrides": {
+    "ws": "^8.21.0",
+    "esbuild": "^0.28.1"
+  },
   "devDependencies": {
     "@types/node": "^26.0.1",
     "@vitest/coverage-v8": "^4.0.18",
